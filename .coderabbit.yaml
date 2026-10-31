@@ -1,0 +1,23 @@
+language: "en-US"
+
+reviews:
+  profile: assertive
+  request_changes_workflow: true
+
+  pre_merge_checks:
+    docstrings:
+      mode: "off"
+
+  path_filters:
+    - "!.github/copilot-instructions.md"
+
+  auto_review:
+    enabled: true
+    drafts: false
+    ignore_usernames:
+      - "renovate[bot]"
+      - "mergify[bot]"
+
+  path_instructions:
+    - path: ".github/workflows/autofix.yaml"
+      instructions: "Accept by design (do not report): the synac step intentionally omits the version input to always use the latest release; do not suggest pinning a version."
