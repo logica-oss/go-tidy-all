@@ -9,12 +9,12 @@
 [![Trivy](https://github.com/logica-oss/go-tidy-all/actions/workflows/trivy.yaml/badge.svg)](https://github.com/logica-oss/go-tidy-all/actions/workflows/trivy.yaml)
 [![codecov](https://codecov.io/gh/logica-oss/go-tidy-all/graph/badge.svg)](https://codecov.io/gh/logica-oss/go-tidy-all)
 
-Tidy every Go module in your repo with one command.
+Tidy every `go.mod` file in your repo.
 
 ## What it does
 
 - Finds every `go.mod` under the current directory.
-- Skips what `.gitignore` (and `.git`) already ignores.
+  - Skips what `.gitignore` (and `.git`) already ignores.
 - Runs `go mod tidy` in each module.
 - Sets each `go` directive to the lowest version your code actually needs (via `mingo`).
 
