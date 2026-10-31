@@ -37,10 +37,6 @@ sudo install -m 755 go-tidy-all /usr/local/bin/
 
 ## Usage
 
-```bash
-go-tidy-all --root /path/to/repo --skip-dirs e2e/testdata --min-go-version 1.24.0
-```
-
 ```plaintext
 Usage: go-tidy-all [options]
 
@@ -56,11 +52,7 @@ Options:
 
 It exits with a non-zero status when it finds no modules.
 
-## Development
-
 ```bash
-task tidy
-task lint
-task build
-task test
+go-tidy-all --root /path/to/repo --skip-dirs e2e/testdata --min-go-version 1.24.0
+go-tidy-all -n # preview changes without writing
 ```

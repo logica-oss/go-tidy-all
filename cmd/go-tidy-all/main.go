@@ -38,7 +38,10 @@ func parseFlags(args []string) (tidyall.Config, bool, error) {
 	flagSet.BoolP("version", "v", false, "print version and exit")
 
 	flagSet.Usage = func() {
-		_, _ = fmt.Fprintf(flagSet.Output(), "Usage: go-tidy-all [options]\n\nRun go mod tidy for every module and pin each go directive.\n\nOptions:\n")
+		_, _ = fmt.Fprintf(flagSet.Output(),
+			"Usage: go-tidy-all [options]\n\n"+
+				"Run go mod tidy for every module and pin each go directive.\n\n"+
+				"Options:\n")
 
 		flagSet.PrintDefaults()
 	}
