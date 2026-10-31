@@ -4,15 +4,14 @@ package main
 
 import (
 	"context"
-	"errors"
-	"flag"
 	"fmt"
 	"log/slog"
 	"os"
 	"runtime/debug"
 	"strings"
 
-	kerrors "github.com/k1LoW/errors"
+	"github.com/k1LoW/errors"
+	"github.com/spf13/pflag"
 
 	tidyall "github.com/logica-oss/go-tidy-all"
 )
@@ -31,22 +30,31 @@ func parseFlags(args []string) (tidyall.Config, bool, error) {
 		showVersion bool
 	)
 
-	flagSet := flag.NewFlagSet("go-tidy-all", flag.ContinueOnError)
+	flagSet := pflag.NewFlagSet("go-tidy-all", pflag.ContinueOnError)
 	flagSet.StringVar(&cfg.Root, "root", "", "repository root (default: current directory)")
-	flagSet.BoolVar(&cfg.DryRun, "dry-run", false, "print planned changes without writing")
-	flagSet.BoolVar(&cfg.DryRun, "n", false, "print planned changes without writing (shorthand for -dry-run)")
+	flagSet.BoolP("dry-run", "n", false, "print planned changes without writing")
 	flagSet.StringVar(&skipDirs, "skip-dirs", "", "comma-separated root-relative directories to skip")
 	flagSet.StringVar(&cfg.MinGoVersion, "min-go-version", "", "pin the go directive to at least this version (e.g. 1.24.0)")
-	flagSet.BoolVar(&showVersion, "version", false, "print version and exit")
-	flagSet.BoolVar(&showVersion, "v", false, "print version and exit (shorthand for -version)")
+	flagSet.BoolP("version", "v", false, "print version and exit")
+
+	flagSet.Usage = func() {
+		_, _ = fmt.Fprintf(flagSet.Output(), "Usage: go-tidy-all [options]\n\nRun go mod tidy for every module and pin each go directive.\n\nOptions:\n")
+
+		flagSet.PrintDefaults()
+	}
 
 	if err := flagSet.Parse(args); err != nil {
-		if errors.Is(err, flag.ErrHelp) {
-			return tidyall.Config{}, false, flag.ErrHelp
+		if errors.Is(err, pflag.ErrHelp) {
+			return tidyall.Config{}, false, pflag.ErrHelp
 		}
 
-		return tidyall.Config{}, false, kerrors.WithStack(err)
+		return tidyall.Config{}, false, errors.WithStack(err)
 	}
+
+	dryRun, _ := flagSet.GetBool("dry-run")
+	cfg.DryRun = dryRun
+
+	showVersion, _ = flagSet.GetBool("version")
 
 	if skipDirs != "" {
 		cfg.SkipDirs = strings.Split(skipDirs, ",")
@@ -55,7 +63,7 @@ func parseFlags(args []string) (tidyall.Config, bool, error) {
 	if cfg.Root == "" {
 		root, err := os.Getwd()
 		if err != nil {
-			return tidyall.Config{}, false, kerrors.WithStack(fmt.Errorf("get working directory: %w", err))
+			return tidyall.Config{}, false, errors.WithStack(fmt.Errorf("get working directory: %w", err))
 		}
 
 		cfg.Root = root
@@ -83,7 +91,7 @@ func main() {
 
 	cfg, showVersion, err := parseFlags(os.Args[1:])
 	if err != nil {
-		if errors.Is(err, flag.ErrHelp) {
+		if errors.Is(err, pflag.ErrHelp) {
 			os.Exit(0)
 		}
 
@@ -108,7 +116,7 @@ func main() {
 	)
 
 	if err := tidyall.Run(context.Background(), log, cfg); err != nil {
-		log.Error("tidy failed", "error", err, "stack", kerrors.StackTraces(err))
+		log.Error("tidy failed", "error", err, "stack", errors.StackTraces(err))
 		os.Exit(1)
 	}
 }
