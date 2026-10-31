@@ -1,5 +1,4 @@
-// Package tidyall runs go mod tidy for every module and pins each go directive
-// to the lowest version that mingo computes.
+// Package tidyall runs go mod tidy for every module and pins each go directive to the lowest version that mingo computes.
 package tidyall
 
 import (

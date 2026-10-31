@@ -17,7 +17,11 @@ import (
 func pinGoDirective(log *slog.Logger, dir string, dryRun bool, minGoVersion string) error {
 	log.Info("mingo", "dir", dir)
 
-	scanner := mingo.Scanner{Deps: true, Indirect: true, Tests: true}
+	scanner := mingo.Scanner{
+		Deps:     true,
+		Indirect: true,
+		Tests:    true,
+	}
 	result, err := scanner.ScanDir(dir)
 	if err != nil {
 		return errors.WithStack(fmt.Errorf("mingo: %w", err))
