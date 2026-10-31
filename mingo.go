@@ -35,7 +35,7 @@ func pinGoDirective(log *slog.Logger, dir string, dryRun bool, minGoVersion stri
 	}
 
 	if declared == minimum {
-		slog.Info("go directive is already minimal", "version", declared)
+		log.Info("go directive is already minimal", "version", declared)
 
 		return nil
 	}

@@ -41,7 +41,7 @@ sudo install -m 755 go-tidy-all /usr/local/bin/
 go-tidy-all
 ```
 
-Run it from the repository root. There are no flags: it tidies every module it finds and exits non-zero with no modules found.
+Run it from the repository root. There are no flags. It tidies every module it finds. It exits with a non-zero status when it finds no modules.
 
 ## Development
 
