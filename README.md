@@ -9,14 +9,14 @@
 [![Trivy](https://github.com/logica-oss/go-tidy-all/actions/workflows/trivy.yaml/badge.svg)](https://github.com/logica-oss/go-tidy-all/actions/workflows/trivy.yaml)
 [![codecov](https://codecov.io/gh/logica-oss/go-tidy-all/graph/badge.svg)](https://codecov.io/gh/logica-oss/go-tidy-all)
 
-Run `go mod tidy` for every module in the repository and pin each `go` directive to the lowest version that `mingo` computes.
+Tidy every Go module in your repo with one command.
 
 ## What it does
 
-- Walks the repository from the current directory and finds every `go.mod`.
-- Skips directories ignored by `.gitignore` (plus `.git`).
-- Runs `go mod tidy` in each module directory.
-- Scans each module with `mingo` and rewrites the `go` directive to the minimal `1.<N>.0`.
+- Finds every `go.mod` under the current directory.
+- Skips what `.gitignore` (and `.git`) already ignores.
+- Runs `go mod tidy` in each module.
+- Sets each `go` directive to the lowest version your code actually needs (via `mingo`).
 
 ## Install
 
@@ -50,9 +50,12 @@ Options:
   -v, --version                 print version and exit
 ```
 
-It exits with a non-zero status when it finds no modules.
+It exits non-zero when no modules are found.
 
 ```bash
+# Tidy a specific repo, skip fixtures, keep go 1.24+:
 go-tidy-all --root /path/to/repo --skip-dirs e2e/testdata --min-go-version 1.24.0
-go-tidy-all -n # preview changes without writing
+
+# Preview only:
+go-tidy-all -n
 ```
