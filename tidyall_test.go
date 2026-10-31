@@ -116,6 +116,32 @@ func TestCopyDirSkipsGit(t *testing.T) {
 	}
 }
 
+func TestCopyDirSkipsGitSymlink(t *testing.T) {
+	t.Parallel()
+
+	src := t.TempDir()
+	writeFile(t, filepath.Join(src, "go.mod"), "module example.com/m\n\ngo 1.24.0\n")
+
+	gitDir := t.TempDir()
+	writeFile(t, filepath.Join(gitDir, "config"), "[core]\n")
+	if err := os.Symlink(gitDir, filepath.Join(src, ".git")); err != nil {
+		t.Skipf("symlinks unavailable: %v", err)
+	}
+
+	dst := t.TempDir()
+	target := filepath.Join(dst, "copy")
+	if err := tidyall.CopyDir(context.Background(), newTestLogger(), src, target); err != nil {
+		t.Fatal(err)
+	}
+
+	if _, err := os.Stat(filepath.Join(target, "go.mod")); err != nil {
+		t.Errorf("copied go.mod missing: %v", err)
+	}
+	if _, err := os.Lstat(filepath.Join(target, ".git")); !os.IsNotExist(err) {
+		t.Errorf(".git symlink should be skipped, stat err = %v", err)
+	}
+}
+
 func TestPinGoDirectiveDryRun(t *testing.T) {
 	t.Parallel()
 
