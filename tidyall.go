@@ -4,6 +4,7 @@ package tidyall
 import (
 	"context"
 	"fmt"
+	"io/fs"
 	"log/slog"
 	"os"
 	"path/filepath"
@@ -49,7 +50,7 @@ func Run(ctx context.Context, log *slog.Logger, cfg Config) error {
 func processModule(ctx context.Context, log *slog.Logger, dir string, cfg Config) error {
 	target := dir
 	if cfg.DryRun {
-		staged, cleanup, err := stageModule(dir)
+		staged, cleanup, err := stageModule(log, dir)
 		if err != nil {
 			return err
 		}
@@ -65,7 +66,7 @@ func processModule(ctx context.Context, log *slog.Logger, dir string, cfg Config
 	return pinGoDirective(log, target, cfg.DryRun, cfg.MinGoVersion)
 }
 
-func stageModule(dir string) (string, func(), error) {
+func stageModule(log *slog.Logger, dir string) (string, func(), error) {
 	staged, err := os.MkdirTemp("", "go-tidy-all-*")
 	if err != nil {
 		return "", nil, errors.WithStack(fmt.Errorf("create stage dir: %w", err))
@@ -73,7 +74,7 @@ func stageModule(dir string) (string, func(), error) {
 
 	cleanup := func() { _ = os.RemoveAll(staged) }
 
-	if err := copyDir(dir, staged); err != nil {
+	if err := copyDir(log, dir, staged); err != nil {
 		cleanup()
 
 		return "", nil, err
@@ -82,7 +83,7 @@ func stageModule(dir string) (string, func(), error) {
 	return staged, cleanup, nil
 }
 
-func copyDir(src, dst string) error {
+func copyDir(log *slog.Logger, src, dst string) error {
 	cleanSrc := filepath.Clean(src)
 
 	if err := os.MkdirAll(dst, 0o755); err != nil {
@@ -95,21 +96,29 @@ func copyDir(src, dst string) error {
 	}
 	defer func() { _ = dstRoot.Close() }()
 
-	return copyDirValidated(cleanSrc, dstRoot, ".")
+	return copyDirValidated(log, cleanSrc, dstRoot, ".")
 }
 
-func copyDirValidated(srcRoot string, dstRoot *os.Root, dir string) error {
+func copyDirValidated(log *slog.Logger, srcRoot string, dstRoot *os.Root, dir string) error {
 	srcDir := filepath.Join(srcRoot, filepath.FromSlash(dir))
 
 	entries, err := os.ReadDir(srcDir)
 	if err != nil {
-		return errors.WithStack(fmt.Errorf("read dir %s: %w", dir, err))
+		log.Warn("skip unreadable dir in dry-run copy", "dir", dir, "error", err)
+
+		return nil
 	}
 
 	for _, entry := range entries {
 		name := entry.Name()
 		if name == "." || name == ".." {
 			return errors.WithStack(fmt.Errorf("invalid entry name %q", name))
+		}
+
+		if entry.Type()&fs.ModeSymlink != 0 {
+			log.Warn("skip symlink in dry-run copy", "path", filepath.Join(dir, name))
+
+			continue
 		}
 
 		rel := name
@@ -129,7 +138,7 @@ func copyDirValidated(srcRoot string, dstRoot *os.Root, dir string) error {
 			if err := dstRoot.MkdirAll(rel, info.Mode().Perm()); err != nil {
 				return errors.WithStack(fmt.Errorf("create dir %s: %w", rel, err))
 			}
-			if err := copyDirValidated(srcRoot, dstRoot, rel); err != nil {
+			if err := copyDirValidated(log, srcRoot, dstRoot, rel); err != nil {
 				return err
 			}
 

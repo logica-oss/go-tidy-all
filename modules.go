@@ -12,6 +12,12 @@ import (
 )
 
 func findModules(root string, skipDirs []string) ([]string, error) {
+	resolved, err := filepath.EvalSymlinks(root)
+	if err != nil {
+		return nil, errors.WithStack(fmt.Errorf("resolve root: %w", err))
+	}
+	root = resolved
+
 	filter, err := newDirFilter(root, skipDirs)
 	if err != nil {
 		return nil, err
@@ -88,12 +94,16 @@ func (f dirFilter) Skip(path, name string) bool {
 	}
 
 	rel, err := filepath.Rel(f.root, path)
-	if err != nil || rel == "." {
+	if err != nil {
 		return false
 	}
 
 	if _, ok := f.skipDirs[rel]; ok {
 		return true
+	}
+
+	if rel == "." {
+		return false
 	}
 
 	if f.matcher == nil {

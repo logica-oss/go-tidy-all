@@ -6,6 +6,7 @@ var (
 	GoVersionPart    = goVersionPart
 	FindModules      = findModules
 	NewDirFilter     = newDirFilter
+	CopyDirValidated = copyDirValidated
 
 	_              = DirFilter{}
 	PinGoDirective = pinGoDirective

@@ -81,7 +81,7 @@ func TestStageModule(t *testing.T) {
 	writeFile(t, filepath.Join(root, "go.mod"), "module example.com/m\n\ngo 1.24.0\n")
 	writeFile(t, filepath.Join(root, "sub", "main.go"), "package main\n")
 
-	staged, cleanup, err := tidyall.StageModule(root)
+	staged, cleanup, err := tidyall.StageModule(newTestLogger(), root)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -104,7 +104,7 @@ func TestCopyDirSkipsGit(t *testing.T) {
 
 	dst := t.TempDir()
 	target := filepath.Join(dst, "copy")
-	if err := tidyall.CopyDir(src, target); err != nil {
+	if err := tidyall.CopyDir(newTestLogger(), src, target); err != nil {
 		t.Fatal(err)
 	}
 

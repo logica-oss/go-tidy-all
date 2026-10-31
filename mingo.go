@@ -98,6 +98,12 @@ func readGoVersion(path string) (string, error) {
 }
 
 func writeGoVersion(goMod, version string) error {
+	resolved, err := filepath.EvalSymlinks(goMod)
+	if err != nil {
+		return errors.WithStack(fmt.Errorf("resolve go.mod: %w", err))
+	}
+	goMod = resolved
+
 	file, err := parseModFile(goMod)
 	if err != nil {
 		return err

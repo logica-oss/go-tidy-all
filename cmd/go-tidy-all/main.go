@@ -54,6 +54,10 @@ func parseFlags(args []string) (tidyall.Config, bool, error) {
 		return tidyall.Config{}, false, errors.WithStack(err)
 	}
 
+	if flagSet.NArg() > 0 {
+		return tidyall.Config{}, false, errors.WithStack(fmt.Errorf("unexpected argument %q: use --root to select a repository", flagSet.Arg(0)))
+	}
+
 	if skipDirs != "" {
 		cfg.SkipDirs = strings.Split(skipDirs, ",")
 	}

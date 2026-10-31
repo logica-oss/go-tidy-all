@@ -22,7 +22,8 @@ func TestFindModules(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	want := []string{root, filepath.Join(root, "sub"), filepath.Join(root, "sub", "nested")}
+	resolved := resolveRoot(t, root)
+	want := []string{resolved, filepath.Join(resolved, "sub"), filepath.Join(resolved, "sub", "nested")}
 	slices.Sort(got)
 	slices.Sort(want)
 	if !slices.Equal(got, want) {
@@ -58,7 +59,8 @@ func TestFindModulesSkipDirs(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	want := []string{root, filepath.Join(root, "keep")}
+	resolved := resolveRoot(t, root)
+	want := []string{resolved, filepath.Join(resolved, "keep")}
 	slices.Sort(got)
 	slices.Sort(want)
 	if !slices.Equal(got, want) {
@@ -78,8 +80,9 @@ func TestFindModulesSkipsGit(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	if len(got) != 1 || got[0] != root {
-		t.Errorf("findModules = %v, want [%s]", got, root)
+	resolved := resolveRoot(t, root)
+	if len(got) != 1 || got[0] != resolved {
+		t.Errorf("findModules = %v, want [%s]", got, resolved)
 	}
 }
 
@@ -96,8 +99,9 @@ func TestFindModulesSkipsIgnoredGoMod(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	if len(got) != 1 || got[0] != root {
-		t.Errorf("findModules = %v, want [%s]", got, root)
+	resolved := resolveRoot(t, root)
+	if len(got) != 1 || got[0] != resolved {
+		t.Errorf("findModules = %v, want [%s]", got, resolved)
 	}
 }
 
@@ -115,12 +119,24 @@ func TestFindModulesSkipsIgnoredFile(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	want := []string{root, filepath.Join(root, "keep")}
+	resolved := resolveRoot(t, root)
+	want := []string{resolved, filepath.Join(resolved, "keep")}
 	slices.Sort(got)
 	slices.Sort(want)
 	if !slices.Equal(got, want) {
 		t.Errorf("findModules = %v, want %v", got, want)
 	}
+}
+
+func resolveRoot(t *testing.T, root string) string {
+	t.Helper()
+
+	resolved, err := filepath.EvalSymlinks(root)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	return resolved
 }
 
 func TestDirFilterSkip(t *testing.T) {
