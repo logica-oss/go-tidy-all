@@ -50,7 +50,7 @@ func Run(ctx context.Context, log *slog.Logger, cfg Config) error {
 func processModule(ctx context.Context, log *slog.Logger, dir string, cfg Config) error {
 	target := dir
 	if cfg.DryRun {
-		staged, cleanup, err := stageModule(log, dir)
+		staged, cleanup, err := stageModule(ctx, log, dir)
 		if err != nil {
 			return err
 		}
@@ -66,7 +66,7 @@ func processModule(ctx context.Context, log *slog.Logger, dir string, cfg Config
 	return pinGoDirective(log, target, cfg.DryRun, cfg.MinGoVersion)
 }
 
-func stageModule(log *slog.Logger, dir string) (string, func(), error) {
+func stageModule(ctx context.Context, log *slog.Logger, dir string) (string, func(), error) {
 	staged, err := os.MkdirTemp("", "go-tidy-all-*")
 	if err != nil {
 		return "", nil, errors.WithStack(fmt.Errorf("create stage dir: %w", err))
@@ -74,7 +74,7 @@ func stageModule(log *slog.Logger, dir string) (string, func(), error) {
 
 	cleanup := func() { _ = os.RemoveAll(staged) }
 
-	if err := copyDir(log, dir, staged); err != nil {
+	if err := copyDir(ctx, log, dir, staged); err != nil {
 		cleanup()
 
 		return "", nil, err
@@ -83,7 +83,7 @@ func stageModule(log *slog.Logger, dir string) (string, func(), error) {
 	return staged, cleanup, nil
 }
 
-func copyDir(log *slog.Logger, src, dst string) error {
+func copyDir(ctx context.Context, log *slog.Logger, src, dst string) error {
 	cleanSrc := filepath.Clean(src)
 
 	if err := os.MkdirAll(dst, 0o755); err != nil {
@@ -96,10 +96,14 @@ func copyDir(log *slog.Logger, src, dst string) error {
 	}
 	defer func() { _ = dstRoot.Close() }()
 
-	return copyDirValidated(log, cleanSrc, dstRoot, ".")
+	return copyDirValidated(ctx, log, cleanSrc, dstRoot, ".")
 }
 
-func copyDirValidated(log *slog.Logger, srcRoot string, dstRoot *os.Root, dir string) error {
+func copyDirValidated(ctx context.Context, log *slog.Logger, srcRoot string, dstRoot *os.Root, dir string) error {
+	if err := ctx.Err(); err != nil {
+		return errors.WithStack(err)
+	}
+
 	srcDir := filepath.Join(srcRoot, filepath.FromSlash(dir))
 
 	entries, err := os.ReadDir(srcDir)
@@ -131,32 +135,40 @@ func copyDirValidated(log *slog.Logger, srcRoot string, dstRoot *os.Root, dir st
 				continue
 			}
 
-			info, err := entry.Info()
-			if err != nil {
-				return errors.WithStack(fmt.Errorf("stat dir %s: %w", rel, err))
-			}
-			if err := dstRoot.MkdirAll(rel, info.Mode().Perm()); err != nil {
+			if err := dstRoot.MkdirAll(rel, 0o755); err != nil {
 				return errors.WithStack(fmt.Errorf("create dir %s: %w", rel, err))
 			}
-			if err := copyDirValidated(log, srcRoot, dstRoot, rel); err != nil {
+			if err := copyDirValidated(ctx, log, srcRoot, dstRoot, rel); err != nil {
 				return err
 			}
 
 			continue
 		}
 
-		data, err := os.ReadFile(filepath.Join(srcRoot, filepath.FromSlash(rel)))
-		if err != nil {
-			return errors.WithStack(fmt.Errorf("read file %s: %w", rel, err))
+		if err := copyFile(ctx, srcRoot, dstRoot, entry, rel); err != nil {
+			return err
 		}
-		info, err := entry.Info()
-		if err != nil {
-			return errors.WithStack(fmt.Errorf("stat file %s: %w", rel, err))
-		}
-		//nolint:gosec // dstRoot confines the write; rel is built from validated entry names.
-		if err := dstRoot.WriteFile(rel, data, info.Mode().Perm()); err != nil {
-			return errors.WithStack(fmt.Errorf("write file %s: %w", rel, err))
-		}
+	}
+
+	return nil
+}
+
+func copyFile(ctx context.Context, srcRoot string, dstRoot *os.Root, entry fs.DirEntry, rel string) error {
+	if err := ctx.Err(); err != nil {
+		return errors.WithStack(err)
+	}
+
+	data, err := os.ReadFile(filepath.Join(srcRoot, filepath.FromSlash(rel)))
+	if err != nil {
+		return errors.WithStack(fmt.Errorf("read file %s: %w", rel, err))
+	}
+	info, err := entry.Info()
+	if err != nil {
+		return errors.WithStack(fmt.Errorf("stat file %s: %w", rel, err))
+	}
+	//nolint:gosec // dstRoot confines the write; rel is built from validated entry names.
+	if err := dstRoot.WriteFile(rel, data, info.Mode().Perm()); err != nil {
+		return errors.WithStack(fmt.Errorf("write file %s: %w", rel, err))
 	}
 
 	return nil
