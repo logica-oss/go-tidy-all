@@ -58,6 +58,12 @@ func parseFlags(args []string) (tidyall.Config, bool, error) {
 		cfg.SkipDirs = strings.Split(skipDirs, ",")
 	}
 
+	if cfg.MinGoVersion != "" {
+		if err := validateGoVersion(cfg.MinGoVersion); err != nil {
+			return tidyall.Config{}, false, err
+		}
+	}
+
 	if cfg.Root == "" {
 		root, err := os.Getwd()
 		if err != nil {
@@ -68,6 +74,27 @@ func parseFlags(args []string) (tidyall.Config, bool, error) {
 	}
 
 	return cfg, showVersion, nil
+}
+
+func validateGoVersion(ver string) error {
+	parts := strings.Split(strings.TrimPrefix(ver, "go"), ".")
+	if len(parts) < 2 || len(parts) > 3 {
+		return errors.WithStack(fmt.Errorf("invalid min-go-version %q: must be like 1.24.0", ver))
+	}
+
+	for _, part := range parts {
+		if part == "" {
+			return errors.WithStack(fmt.Errorf("invalid min-go-version %q: must be like 1.24.0", ver))
+		}
+
+		for _, r := range part {
+			if r < '0' || r > '9' {
+				return errors.WithStack(fmt.Errorf("invalid min-go-version %q: must be like 1.24.0", ver))
+			}
+		}
+	}
+
+	return nil
 }
 
 func resolveVersion() string {

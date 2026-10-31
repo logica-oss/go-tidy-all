@@ -34,6 +34,10 @@ func findModules(root string, skipDirs []string) ([]string, error) {
 			return nil
 		}
 
+		if filter.skipFile(path) {
+			return nil
+		}
+
 		dirs = append(dirs, filepath.Dir(path))
 
 		return nil
@@ -93,4 +97,17 @@ func (f dirFilter) skip(path, name string) bool {
 	}
 
 	return f.matcher.Match(strings.Split(rel, string(filepath.Separator)), true)
+}
+
+func (f dirFilter) skipFile(path string) bool {
+	if f.matcher == nil {
+		return false
+	}
+
+	rel, err := filepath.Rel(f.root, path)
+	if err != nil {
+		return false
+	}
+
+	return f.matcher.Match(strings.Split(rel, string(filepath.Separator)), false)
 }
