@@ -1,0 +1,183 @@
+version: "2"
+
+linters:
+  default: none
+  enable:
+    # - arangolint # unused product-specific linter
+    - asasalint
+    - asciicheck
+    - bidichk
+    - bodyclose
+    - canonicalheader
+    # - clickhouselint # unused product-specific linter
+    - containedctx
+    - contextcheck
+    - copyloopvar
+    - cyclop
+    - decorder
+    # - depguard # overlaps with gomodguard_v2
+    - dogsled
+    - dupl
+    - dupword
+    - durationcheck
+    - embeddedstructfieldcheck
+    # - err113 # wrapped dynamic errors with %w are the established pattern here
+    - errcheck
+    - errchkjson
+    - errname
+    - errorlint
+    - exhaustive
+    # - exhaustruct_v5 # partial initialization is legitimate
+    - exptostd
+    - fatcontext
+    - forbidigo
+    - forcetypeassert
+    - funcorder
+    - funlen
+    # - ginkgolinter # unused product-specific linter
+    - gocheckcompilerdirectives
+    - gochecknoglobals
+    - gochecknoinits
+    - gochecksumtype
+    - gocognit
+    - goconst
+    - gocritic
+    - gocyclo
+    - godoclint
+    # - godot # comments without periods are intentional
+    - godox
+    - goheader
+    - gomoddirectives
+    - gomodguard_v2
+    - goprintffuncname
+    - gosec
+    - gosmopolitan
+    - govet
+    - grouper
+    - iface
+    - importas
+    - inamedparam
+    - ineffassign
+    - interfacebloat
+    - intrange
+    - iotamixing
+    - ireturn
+    # - lll # long lines are more readable than forced splits
+    - loggercheck
+    - maintidx
+    - makezero
+    - mirror
+    - misspell
+    - mnd
+    - modernize
+    - musttag
+    - nakedret
+    - nestif
+    - nilerr
+    - nilnesserr
+    - nilnil
+    - nlreturn
+    - noctx
+    # - noinlineerr # conflicts with idiomatic inline error handling
+    # - nolintlint # allow local //nolint with reasons
+    - nonamedreturns
+    - nosprintfhostport
+    - paralleltest
+    - perfsprint
+    - prealloc
+    - predeclared
+    # - promlinter # unused product-specific linter
+    # - protogetter # unused product-specific linter
+    - reassign
+    - recvcheck
+    - revive
+    - rowserrcheck
+    - sloglint
+    # - spancheck # unused product-specific linter
+    - sqlclosecheck
+    - staticcheck
+    - tagalign
+    - tagliatelle
+    - testableexamples
+    # - testifylint # unused product-specific linter
+    - testpackage
+    - thelper
+    - tparallel
+    - unconvert
+    - unparam
+    - unqueryvet
+    - unused
+    - usestdlibvars
+    - usetesting
+    - varnamelen
+    - wastedassign
+    - whitespace
+    - wrapcheck
+    - wsl_v5
+    # - zerologlint # unused product-specific linter
+
+  settings:
+    cyclop:
+      max-complexity: 15
+    gosec:
+      excludes:
+        - G301
+        - G302
+        - G304
+        - G306
+    mnd:
+      ignored-numbers:
+        - "0o755"
+        - "0o644"
+    staticcheck:
+      checks:
+        - all
+    varnamelen:
+      ignore-names:
+        - tt
+        - ok
+        - i
+    wsl_v5:
+      default: all
+      disable:
+        - assign
+        - expr
+        - if
+        - range
+        - for
+        - after-block
+        - after-decl
+        - after-expr
+      case-max-lines: 1
+    wrapcheck:
+      ignore-package-globs:
+        - github.com/logica-oss/go-tidy-all/*
+
+  exclusions:
+    rules:
+      - path: _test\.go
+        linters:
+          - funlen
+          - goconst
+          - maintidx
+      - path: 0_export_test\.go
+        linters:
+          - gochecknoglobals
+
+formatters:
+  enable:
+    - goimports
+    - gci
+    - gofumpt
+  settings:
+    gci:
+      sections:
+        - standard
+        - default
+        - prefix(github.com/logica-oss/go-tidy-all)
+        - blank
+    gofumpt:
+      extra:
+        group-params: true
+        clothe-returns: true
+        balance-calls: true

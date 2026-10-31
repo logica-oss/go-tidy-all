@@ -1,0 +1,27 @@
+# Logs
+logs
+*.log
+
+# Go build output
+bin/
+dist/
+main
+
+# Go test artifacts
+coverage.out
+coverage.html
+*.test
+*.out
+
+# Workspace checksums
+go.work.sum
+
+# dotenv environment variable files
+.env
+.env.*
+
+# macOS
+.DS_Store
+
+# vscode setting folder
+.vscode/

@@ -1,0 +1,136 @@
+version: 3
+
+# Task definition order
+#
+# 1.
+#   desc
+#
+# 2.
+#   internal
+#   dir
+#   silent
+#
+# 3.
+#   vars
+#   status / sources / generates / methods / preconditions
+#   deps
+#
+# 4.
+#   cmds
+
+vars:
+  GO_PACKAGES: ./... ./tools/...
+
+tasks:
+  check-binary:
+    desc: Check if the binary exists
+    internal: true
+    silent: true
+    cmds:
+      - |
+        if ! (type {{.BINARY}} >/dev/null 2>&1); then
+          echo "Install \"{{if .ALT_NAME}}{{.ALT_NAME}}{{else}}{{.BINARY}}{{end}}\" and rerun this task."
+          echo {{.INSTALL_DOC}}
+          exit 1
+        fi
+
+  tidy:
+    desc: Tidy
+    deps:
+      - task: check-binary
+        vars:
+          BINARY: go
+          INSTALL_DOC: https://go.dev/doc/install
+    cmds:
+      - go run ./cmd/go-tidy-all
+
+  lint:
+    desc: Lint
+    deps:
+      - task: check-binary
+        vars:
+          BINARY: go
+          INSTALL_DOC: https://go.dev/doc/install
+    cmds:
+      - go tool golangci-lint run {{.GO_PACKAGES}}
+
+  lint-fix:
+    desc: Lint with fix
+    deps:
+      - task: check-binary
+        vars:
+          BINARY: go
+          INSTALL_DOC: https://go.dev/doc/install
+    cmds:
+      - go tool golangci-lint run --fix {{.GO_PACKAGES}}
+
+  format:
+    desc: Format
+    deps:
+      - task: check-binary
+        vars:
+          BINARY: go
+          INSTALL_DOC: https://go.dev/doc/install
+    cmds:
+      - go tool golangci-lint fmt {{.GO_PACKAGES}}
+
+  build:
+    desc: Build
+    deps:
+      - task: check-binary
+        vars:
+          BINARY: go
+          INSTALL_DOC: https://go.dev/doc/install
+    cmds:
+      - go build ./cmd/go-tidy-all/*.go
+
+  test:
+    desc: Test
+    deps:
+      - task: check-binary
+        vars:
+          BINARY: go
+          INSTALL_DOC: https://go.dev/doc/install
+    cmds:
+      - go test {{.GO_PACKAGES}}
+
+  coverage:
+    desc: Coverage
+    deps:
+      - task: check-binary
+        vars:
+          BINARY: go
+          INSTALL_DOC: https://go.dev/doc/install
+    cmds:
+      - go test -covermode=atomic -coverprofile=coverage.out ./...
+      - go tool cover -func=coverage.out
+
+  run:
+    desc: Run go-tidy-all
+    deps:
+      - task: check-binary
+        vars:
+          BINARY: go
+          INSTALL_DOC: https://go.dev/doc/install
+    cmds:
+      - go run ./cmd/go-tidy-all {{.CLI_ARGS}}
+
+  trivy:
+    desc: Scan the repository for vulnerabilities and secrets
+    deps:
+      - task: check-binary
+        vars:
+          BINARY: trivy
+          INSTALL_DOC: brew install trivy
+    cmds:
+      - trivy repo {{.CLI_ARGS}} .
+
+  default:
+    desc: Run all tasks
+    cmds:
+      - task: tidy
+      - task: lint-fix
+      - task: format
+      - task: build
+      - task: test
+      - task: trivy
