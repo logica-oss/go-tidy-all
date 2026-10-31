@@ -32,10 +32,10 @@ func parseFlags(args []string) (tidyall.Config, bool, error) {
 
 	flagSet := pflag.NewFlagSet("go-tidy-all", pflag.ContinueOnError)
 	flagSet.StringVar(&cfg.Root, "root", "", "repository root (default: current directory)")
-	flagSet.BoolP("dry-run", "n", false, "print planned changes without writing")
+	flagSet.BoolVarP(&cfg.DryRun, "dry-run", "n", false, "print planned changes without writing")
 	flagSet.StringVar(&skipDirs, "skip-dirs", "", "comma-separated root-relative directories to skip")
 	flagSet.StringVar(&cfg.MinGoVersion, "min-go-version", "", "pin the go directive to at least this version (e.g. 1.24.0)")
-	flagSet.BoolP("version", "v", false, "print version and exit")
+	flagSet.BoolVarP(&showVersion, "version", "v", false, "print version and exit")
 
 	flagSet.Usage = func() {
 		_, _ = fmt.Fprintf(flagSet.Output(),
@@ -53,11 +53,6 @@ func parseFlags(args []string) (tidyall.Config, bool, error) {
 
 		return tidyall.Config{}, false, errors.WithStack(err)
 	}
-
-	dryRun, _ := flagSet.GetBool("dry-run")
-	cfg.DryRun = dryRun
-
-	showVersion, _ = flagSet.GetBool("version")
 
 	if skipDirs != "" {
 		cfg.SkipDirs = strings.Split(skipDirs, ",")
