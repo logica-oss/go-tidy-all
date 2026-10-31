@@ -133,6 +133,10 @@ func copyEntry(ctx context.Context, log *slog.Logger, srcRoot string, dstRoot *o
 		rel = filepath.Join(dir, name)
 	}
 
+	if name == ".git" {
+		return nil
+	}
+
 	if entry.Type()&fs.ModeSymlink != 0 {
 		return copySymlinkTarget(ctx, log, srcRoot, dstRoot, rel)
 	}
@@ -144,10 +148,6 @@ func copyEntry(ctx context.Context, log *slog.Logger, srcRoot string, dstRoot *o
 	}
 
 	if entry.IsDir() {
-		if name == ".git" {
-			return nil
-		}
-
 		if err := dstRoot.MkdirAll(rel, 0o755); err != nil {
 			return errors.WithStack(fmt.Errorf("create dir %s: %w", rel, err))
 		}
