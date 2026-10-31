@@ -4,23 +4,24 @@ package main
 
 import (
 	"context"
-	standarderrors "errors"
+	"flag"
 	"fmt"
 	"log/slog"
 	"os"
 	"runtime/debug"
+	"strings"
 
 	"github.com/k1LoW/errors"
-	"github.com/spf13/pflag"
 
 	tidyall "github.com/logica-oss/go-tidy-all"
-	"github.com/logica-oss/go-tidy-all/pkg/config"
 )
 
 // version is injected at build time via ldflags.
 //
 //nolint:gochecknoglobals // build-time injection requires a package variable.
 var version = "dev"
+
+const exitUsage = 2
 
 func resolveVersion() string {
 	if version != "" && version != "dev" && version != "(devel)" {
@@ -39,17 +40,12 @@ func resolveVersion() string {
 func main() {
 	log := slog.New(slog.NewTextHandler(os.Stdout, nil))
 
-	cfg, err := config.Load(os.Args[1:])
+	cfg, showVersion, err := parseFlags(os.Args[1:])
 	if err != nil {
-		if standarderrors.Is(err, pflag.ErrHelp) {
-			os.Exit(0)
-		}
-
 		fmt.Fprintf(os.Stderr, "go-tidy-all: %v\n", err)
-		os.Exit(1)
+		os.Exit(exitUsage)
 	}
-
-	if cfg.Version {
+	if showVersion {
 		if _, err := fmt.Fprintln(os.Stdout, resolveVersion()); err != nil {
 			fmt.Fprintf(os.Stderr, "go-tidy-all: print version: %v\n", err)
 			os.Exit(1)
@@ -65,13 +61,43 @@ func main() {
 		"min_go_version", cfg.MinGoVersion,
 	)
 
-	if err := tidyall.Run(context.Background(), log, tidyall.Config{
-		Root:         cfg.Root,
-		DryRun:       cfg.DryRun,
-		SkipDirs:     cfg.SkipDirs,
-		MinGoVersion: cfg.MinGoVersion,
-	}); err != nil {
+	if err := tidyall.Run(context.Background(), log, cfg); err != nil {
 		log.Error("tidy failed", "error", err, "stack", errors.StackTraces(err))
 		os.Exit(1)
 	}
+}
+
+func parseFlags(args []string) (tidyall.Config, bool, error) {
+	var cfg tidyall.Config
+
+	var skipDirs string
+
+	var showVersion bool
+
+	flagSet := flag.NewFlagSet("go-tidy-all", flag.ContinueOnError)
+	flagSet.StringVar(&cfg.Root, "root", "", "repository root (default: current directory)")
+	flagSet.BoolVar(&cfg.DryRun, "n", false, "print planned changes without writing")
+	flagSet.BoolVar(&cfg.DryRun, "dry-run", false, "print planned changes without writing")
+	flagSet.StringVar(&skipDirs, "skip-dirs", "", "comma-separated root-relative directories to skip")
+	flagSet.StringVar(&cfg.MinGoVersion, "min-go-version", "", "pin the go directive to at least this version (e.g. 1.24.0)")
+	flagSet.BoolVar(&showVersion, "v", false, "print version and exit")
+	flagSet.BoolVar(&showVersion, "version", false, "print version and exit")
+
+	if err := flagSet.Parse(args); err != nil {
+		return tidyall.Config{}, false, errors.WithStack(err)
+	}
+
+	if skipDirs != "" {
+		cfg.SkipDirs = strings.Split(skipDirs, ",")
+	}
+
+	if cfg.Root == "" {
+		root, err := os.Getwd()
+		if err != nil {
+			return tidyall.Config{}, false, errors.WithStack(fmt.Errorf("get working directory: %w", err))
+		}
+		cfg.Root = root
+	}
+
+	return cfg, showVersion, nil
 }
