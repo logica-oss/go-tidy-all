@@ -94,6 +94,16 @@ tasks:
     cmds:
       - go test {{.GO_PACKAGES}}
 
+  e2e:
+    desc: E2E
+    deps:
+      - task: check-binary
+        vars:
+          BINARY: go
+          INSTALL_DOC: https://go.dev/doc/install
+    cmds:
+      - TIDYALL_E2E=1 go test ./e2e/...
+
   coverage:
     desc: Coverage
     deps:

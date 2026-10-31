@@ -52,6 +52,8 @@ jobs:
         run: task build
       - name: Test
         run: task test
+      - name: E2E
+        run: task e2e
 
   coverage:
     name: Coverage
