@@ -205,7 +205,13 @@ func copySymlinkTarget(ctx context.Context, log *slog.Logger, srcRoot string, ds
 			return errors.WithStack(fmt.Errorf("create dir %s: %w", rel, err))
 		}
 
-		return copyDirValidated(ctx, log, target, dstRoot, rel)
+		return copyDirValidated(ctx, log, srcRoot, dstRoot, rel)
+	}
+
+	if !info.Mode().IsRegular() {
+		log.Warn("skip non-regular symlink target in dry-run copy", "path", rel)
+
+		return nil
 	}
 
 	data, err := os.ReadFile(target)
