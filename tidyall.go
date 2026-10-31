@@ -114,43 +114,48 @@ func copyDirValidated(ctx context.Context, log *slog.Logger, srcRoot string, dst
 	}
 
 	for _, entry := range entries {
-		name := entry.Name()
-		if name == "." || name == ".." {
-			return errors.WithStack(fmt.Errorf("invalid entry name %q", name))
-		}
-
-		if entry.Type()&fs.ModeSymlink != 0 {
-			log.Warn("skip symlink in dry-run copy", "path", filepath.Join(dir, name))
-
-			continue
-		}
-
-		rel := name
-		if dir != "." {
-			rel = filepath.Join(dir, name)
-		}
-
-		if entry.IsDir() {
-			if name == ".git" {
-				continue
-			}
-
-			if err := dstRoot.MkdirAll(rel, 0o755); err != nil {
-				return errors.WithStack(fmt.Errorf("create dir %s: %w", rel, err))
-			}
-			if err := copyDirValidated(ctx, log, srcRoot, dstRoot, rel); err != nil {
-				return err
-			}
-
-			continue
-		}
-
-		if err := copyFile(ctx, srcRoot, dstRoot, entry, rel); err != nil {
+		if err := copyEntry(ctx, log, srcRoot, dstRoot, dir, entry); err != nil {
 			return err
 		}
 	}
 
 	return nil
+}
+
+func copyEntry(ctx context.Context, log *slog.Logger, srcRoot string, dstRoot *os.Root, dir string, entry fs.DirEntry) error {
+	name := entry.Name()
+	if name == "." || name == ".." {
+		return errors.WithStack(fmt.Errorf("invalid entry name %q", name))
+	}
+
+	rel := name
+	if dir != "." {
+		rel = filepath.Join(dir, name)
+	}
+
+	if entry.Type()&fs.ModeSymlink != 0 {
+		return copySymlinkTarget(ctx, log, srcRoot, dstRoot, rel)
+	}
+
+	if !entry.IsDir() && !entry.Type().IsRegular() {
+		log.Warn("skip non-regular file in dry-run copy", "path", rel)
+
+		return nil
+	}
+
+	if entry.IsDir() {
+		if name == ".git" {
+			return nil
+		}
+
+		if err := dstRoot.MkdirAll(rel, 0o755); err != nil {
+			return errors.WithStack(fmt.Errorf("create dir %s: %w", rel, err))
+		}
+
+		return copyDirValidated(ctx, log, srcRoot, dstRoot, rel)
+	}
+
+	return copyFile(ctx, srcRoot, dstRoot, entry, rel)
 }
 
 func copyFile(ctx context.Context, srcRoot string, dstRoot *os.Root, entry fs.DirEntry, rel string) error {
@@ -170,6 +175,49 @@ func copyFile(ctx context.Context, srcRoot string, dstRoot *os.Root, entry fs.Di
 	if err := dstRoot.WriteFile(rel, data, info.Mode().Perm()); err != nil {
 		return errors.WithStack(fmt.Errorf("write file %s: %w", rel, err))
 	}
+
+	return nil
+}
+
+func copySymlinkTarget(ctx context.Context, log *slog.Logger, srcRoot string, dstRoot *os.Root, rel string) error {
+	if err := ctx.Err(); err != nil {
+		return errors.WithStack(err)
+	}
+
+	srcPath := filepath.Join(srcRoot, filepath.FromSlash(rel))
+
+	target, err := filepath.EvalSymlinks(srcPath)
+	if err != nil {
+		log.Warn("skip dangling symlink in dry-run copy", "path", rel, "error", err)
+
+		return nil
+	}
+
+	info, err := os.Stat(target)
+	if err != nil {
+		log.Warn("skip unreadable symlink target in dry-run copy", "path", rel, "error", err)
+
+		return nil
+	}
+
+	if info.IsDir() {
+		if err := dstRoot.MkdirAll(rel, 0o755); err != nil {
+			return errors.WithStack(fmt.Errorf("create dir %s: %w", rel, err))
+		}
+
+		return copyDirValidated(ctx, log, target, dstRoot, rel)
+	}
+
+	data, err := os.ReadFile(target)
+	if err != nil {
+		return errors.WithStack(fmt.Errorf("read symlink target %s: %w", rel, err))
+	}
+	//nolint:gosec // dstRoot confines the write; rel is built from validated entry names.
+	if err := dstRoot.WriteFile(rel, data, info.Mode().Perm()); err != nil {
+		return errors.WithStack(fmt.Errorf("write file %s: %w", rel, err))
+	}
+
+	log.Info("copied symlink target in dry-run copy", "path", rel)
 
 	return nil
 }
