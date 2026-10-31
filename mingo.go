@@ -1,18 +1,20 @@
 package tidyall
 
 import (
+	"cmp"
 	"fmt"
 	"log/slog"
 	"os"
 	"path/filepath"
 	"strconv"
+	"strings"
 
 	"github.com/bobg/mingo"
 	"github.com/k1LoW/errors"
 	"golang.org/x/mod/modfile"
 )
 
-func pinGoDirective(log *slog.Logger, dir string) error {
+func pinGoDirective(log *slog.Logger, dir string, dryRun bool, minGoVersion string) error {
 	log.Info("mingo", "dir", dir)
 
 	scanner := mingo.Scanner{Deps: true, Indirect: true}
@@ -21,15 +23,25 @@ func pinGoDirective(log *slog.Logger, dir string) error {
 		return errors.WithStack(fmt.Errorf("mingo: %w", err))
 	}
 
+	minimum := "1." + strconv.Itoa(result.Version()) + ".0"
+	if minGoVersion != "" && compareGoVersion(minimum, minGoVersion) < 0 {
+		minimum = minGoVersion
+	}
+
 	goMod := filepath.Join(dir, "go.mod")
 	declared, err := readGoVersion(goMod)
 	if err != nil {
 		return err
 	}
 
-	minimum := "1." + strconv.Itoa(result.Version()) + ".0"
 	if declared == minimum {
 		slog.Info("go directive is already minimal", "version", declared)
+
+		return nil
+	}
+
+	if dryRun {
+		log.Info("dry-run: would pin go directive", "from", declared, "to", minimum)
 
 		return nil
 	}
@@ -37,6 +49,36 @@ func pinGoDirective(log *slog.Logger, dir string) error {
 	log.Info("pin go directive", "from", declared, "to", minimum)
 
 	return writeGoVersion(goMod, minimum)
+}
+
+const maxParts = 3
+
+func compareGoVersion(a, b string) int {
+	aParts := strings.SplitN(strings.TrimPrefix(a, "go"), ".", maxParts)
+	bParts := strings.SplitN(strings.TrimPrefix(b, "go"), ".", maxParts)
+
+	for i := range maxParts {
+		aNum := goVersionPart(aParts, i)
+		bNum := goVersionPart(bParts, i)
+		if aNum != bNum {
+			return cmp.Compare(aNum, bNum)
+		}
+	}
+
+	return 0
+}
+
+func goVersionPart(parts []string, i int) int {
+	if i >= len(parts) {
+		return 0
+	}
+
+	num, err := strconv.Atoi(parts[i])
+	if err != nil {
+		return 0
+	}
+
+	return num
 }
 
 func readGoVersion(path string) (string, error) {

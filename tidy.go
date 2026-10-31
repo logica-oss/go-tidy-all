@@ -9,7 +9,13 @@ import (
 	"github.com/k1LoW/errors"
 )
 
-func tidy(ctx context.Context, log *slog.Logger, dir string) error {
+func tidy(ctx context.Context, log *slog.Logger, dir string, dryRun bool) error {
+	if dryRun {
+		log.Info("dry-run: would run go mod tidy", "dir", dir)
+
+		return nil
+	}
+
 	log.Info("go mod tidy", "dir", dir)
 
 	cmd := exec.CommandContext(ctx, "go", "mod", "tidy")

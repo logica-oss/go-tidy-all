@@ -11,12 +11,11 @@ import (
 	"github.com/k1LoW/errors"
 )
 
-func findModules(root string) ([]string, error) {
-	patterns, err := loadGitignore(root)
+func findModules(root string, skipDirs []string) ([]string, error) {
+	filter, err := newDirFilter(root, skipDirs)
 	if err != nil {
 		return nil, err
 	}
-	matcher := gitignore.NewMatcher(patterns)
 
 	var dirs []string
 	err = filepath.WalkDir(root, func(path string, entry fs.DirEntry, err error) error {
@@ -25,7 +24,7 @@ func findModules(root string) ([]string, error) {
 		}
 
 		if entry.IsDir() {
-			if shouldSkipDir(matcher, root, path, entry.Name()) {
+			if filter.skip(path, entry.Name()) {
 				return filepath.SkipDir
 			}
 
@@ -46,28 +45,52 @@ func findModules(root string) ([]string, error) {
 	return dirs, nil
 }
 
-func loadGitignore(root string) ([]gitignore.Pattern, error) {
-	patterns, err := gitignore.ReadPatterns(osfs.New(root), nil)
-	if err != nil {
-		return nil, errors.WithStack(fmt.Errorf("read gitignore patterns: %w", err))
-	}
-
-	return patterns, nil
+type dirFilter struct {
+	root     string
+	matcher  gitignore.Matcher
+	skipDirs map[string]struct{}
 }
 
-func shouldSkipDir(matcher gitignore.Matcher, root, path, name string) bool {
+func newDirFilter(root string, skipDirs []string) (dirFilter, error) {
+	patterns, err := gitignore.ReadPatterns(osfs.New(root), nil)
+	if err != nil {
+		return dirFilter{}, errors.WithStack(fmt.Errorf("read gitignore patterns: %w", err))
+	}
+
+	skipDirsMap := make(map[string]struct{}, len(skipDirs))
+	for _, dir := range skipDirs {
+		rel, err := filepath.Rel(root, filepath.Join(root, filepath.FromSlash(dir)))
+		if err != nil {
+			continue
+		}
+
+		skipDirsMap[rel] = struct{}{}
+	}
+
+	return dirFilter{
+		root:     root,
+		matcher:  gitignore.NewMatcher(patterns),
+		skipDirs: skipDirsMap,
+	}, nil
+}
+
+func (f dirFilter) skip(path, name string) bool {
 	if name == ".git" {
 		return true
 	}
 
-	if matcher == nil {
-		return false
-	}
-
-	rel, err := filepath.Rel(root, path)
+	rel, err := filepath.Rel(f.root, path)
 	if err != nil || rel == "." {
 		return false
 	}
 
-	return matcher.Match(strings.Split(rel, string(filepath.Separator)), true)
+	if _, ok := f.skipDirs[rel]; ok {
+		return true
+	}
+
+	if f.matcher == nil {
+		return false
+	}
+
+	return f.matcher.Match(strings.Split(rel, string(filepath.Separator)), true)
 }

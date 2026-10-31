@@ -14,12 +14,20 @@ var ErrNoModule = errors.New("no go.mod found")
 
 // Config holds tidy-all settings.
 type Config struct {
+	// Root is the repository root.
 	Root string
+	// DryRun prints planned changes without writing.
+	DryRun bool
+	// SkipDirs skips modules under these root-relative directories.
+	SkipDirs []string
+	// MinGoVersion pins the go directive to at least this version (e.g. "1.24.0").
+	// Empty follows the mingo result.
+	MinGoVersion string
 }
 
 // Run tidies every module under root.
 func Run(ctx context.Context, log *slog.Logger, cfg Config) error {
-	dirs, err := findModules(cfg.Root)
+	dirs, err := findModules(cfg.Root, cfg.SkipDirs)
 	if err != nil {
 		return err
 	}
@@ -28,11 +36,11 @@ func Run(ctx context.Context, log *slog.Logger, cfg Config) error {
 	}
 
 	for _, dir := range dirs {
-		if err := tidy(ctx, log, dir); err != nil {
+		if err := tidy(ctx, log, dir, cfg.DryRun); err != nil {
 			return err
 		}
 
-		if err := pinGoDirective(log, dir); err != nil {
+		if err := pinGoDirective(log, dir, cfg.DryRun, cfg.MinGoVersion); err != nil {
 			return err
 		}
 	}
