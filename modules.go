@@ -55,6 +55,9 @@ type dirFilter struct {
 	skipDirs map[string]struct{}
 }
 
+// DirFilter is exported for external tests.
+type DirFilter = dirFilter
+
 func newDirFilter(root string, skipDirs []string) (dirFilter, error) {
 	patterns, err := gitignore.ReadPatterns(osfs.New(root), nil)
 	if err != nil {
@@ -78,7 +81,8 @@ func newDirFilter(root string, skipDirs []string) (dirFilter, error) {
 	}, nil
 }
 
-func (f dirFilter) skip(path, name string) bool {
+// Skip is exported for external tests.
+func (f dirFilter) Skip(path, name string) bool {
 	if name == ".git" {
 		return true
 	}
@@ -97,6 +101,10 @@ func (f dirFilter) skip(path, name string) bool {
 	}
 
 	return f.matcher.Match(strings.Split(rel, string(filepath.Separator)), true)
+}
+
+func (f dirFilter) skip(path, name string) bool {
+	return f.Skip(path, name)
 }
 
 func (f dirFilter) skipFile(path string) bool {
