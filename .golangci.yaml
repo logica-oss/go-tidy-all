@@ -160,11 +160,13 @@ linters:
           - funlen
           - goconst
           - maintidx
-          - testpackage
           - wrapcheck
       - path: e2e/
         linters:
           - gosec
+      - path: export_test\.go
+        linters:
+          - gochecknoglobals
 
 formatters:
   enable:

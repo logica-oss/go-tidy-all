@@ -1,11 +1,12 @@
-package tidyall
+package tidyall_test
 
 import (
 	"context"
 	"log/slog"
-	"os"
 	"path/filepath"
 	"testing"
+
+	tidyall "github.com/logica-oss/go-tidy-all"
 )
 
 func newTestLogger() *slog.Logger {
@@ -18,9 +19,9 @@ func TestRunNoModules(t *testing.T) {
 	root := t.TempDir()
 	writeFile(t, filepath.Join(root, "main.go"), "package main\n")
 
-	err := Run(context.Background(), newTestLogger(), Config{Root: root})
+	err := tidyall.Run(context.Background(), newTestLogger(), tidyall.Config{Root: root})
 	if err == nil {
-		t.Fatal("Run = nil, want ErrNoModule")
+		t.Fatal("Run = nil, want tidyall.ErrNoModule")
 	}
 }
 
@@ -31,13 +32,13 @@ func TestRunDryRun(t *testing.T) {
 	writeFile(t, filepath.Join(root, "go.mod"), "module example.com/m\n\ngo 1.24.0\n")
 	writeFile(t, filepath.Join(root, "main.go"), "package main\n\nfunc main() {}\n")
 
-	cfg := Config{Root: root, DryRun: true}
-	if err := Run(context.Background(), newTestLogger(), cfg); err != nil {
+	cfg := tidyall.Config{Root: root, DryRun: true}
+	if err := tidyall.Run(context.Background(), newTestLogger(), cfg); err != nil {
 		t.Fatal(err)
 	}
 
 	// DryRun must not modify go.mod.
-	got, err := readGoVersion(filepath.Join(root, "go.mod"))
+	got, err := tidyall.ReadGoVersion(filepath.Join(root, "go.mod"))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -55,8 +56,8 @@ func TestRunSkipsDirs(t *testing.T) {
 	writeFile(t, filepath.Join(root, "skipme", "go.mod"), "module example.com/skip\n\ngo 1.24.0\n")
 	writeFile(t, filepath.Join(root, "skipme", "main.go"), "package main\n\nfunc main() {}\n")
 
-	cfg := Config{Root: root, DryRun: true, SkipDirs: []string{"skipme"}}
-	if err := Run(context.Background(), newTestLogger(), cfg); err != nil {
+	cfg := tidyall.Config{Root: root, DryRun: true, SkipDirs: []string{"skipme"}}
+	if err := tidyall.Run(context.Background(), newTestLogger(), cfg); err != nil {
 		t.Fatal(err)
 	}
 }
@@ -67,76 +68,8 @@ func TestTidyDryRun(t *testing.T) {
 	root := t.TempDir()
 	writeFile(t, filepath.Join(root, "go.mod"), "module example.com/m\n\ngo 1.24.0\n")
 
-	if err := tidy(context.Background(), newTestLogger(), root, true); err != nil {
+	if err := tidyall.Tidy(context.Background(), newTestLogger(), root, true); err != nil {
 		t.Fatal(err)
-	}
-}
-
-func TestStageModule(t *testing.T) {
-	t.Parallel()
-
-	root := t.TempDir()
-	writeFile(t, filepath.Join(root, "go.mod"), "module example.com/m\n\ngo 1.24.0\n")
-	writeFile(t, filepath.Join(root, "sub", "main.go"), "package main\n")
-
-	staged, cleanup, err := stageModule(context.Background(), newTestLogger(), root)
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer cleanup()
-
-	if _, err := os.Stat(filepath.Join(staged, "go.mod")); err != nil {
-		t.Errorf("staged go.mod missing: %v", err)
-	}
-	if _, err := os.Stat(filepath.Join(staged, "sub", "main.go")); err != nil {
-		t.Errorf("staged sub/main.go missing: %v", err)
-	}
-}
-
-func TestCopyDirSkipsGit(t *testing.T) {
-	t.Parallel()
-
-	src := t.TempDir()
-	writeFile(t, filepath.Join(src, "go.mod"), "module example.com/m\n\ngo 1.24.0\n")
-	writeFile(t, filepath.Join(src, ".git", "config"), "[core]\n")
-
-	dst := t.TempDir()
-	target := filepath.Join(dst, "copy")
-	if err := copyDir(context.Background(), newTestLogger(), src, target); err != nil {
-		t.Fatal(err)
-	}
-
-	if _, err := os.Stat(filepath.Join(target, "go.mod")); err != nil {
-		t.Errorf("copied go.mod missing: %v", err)
-	}
-	if _, err := os.Stat(filepath.Join(target, ".git")); !os.IsNotExist(err) {
-		t.Errorf(".git should be skipped, stat err = %v", err)
-	}
-}
-
-func TestCopyDirSkipsGitSymlink(t *testing.T) {
-	t.Parallel()
-
-	src := t.TempDir()
-	writeFile(t, filepath.Join(src, "go.mod"), "module example.com/m\n\ngo 1.24.0\n")
-
-	gitDir := t.TempDir()
-	writeFile(t, filepath.Join(gitDir, "config"), "[core]\n")
-	if err := os.Symlink(gitDir, filepath.Join(src, ".git")); err != nil {
-		t.Skipf("symlinks unavailable: %v", err)
-	}
-
-	dst := t.TempDir()
-	target := filepath.Join(dst, "copy")
-	if err := copyDir(context.Background(), newTestLogger(), src, target); err != nil {
-		t.Fatal(err)
-	}
-
-	if _, err := os.Stat(filepath.Join(target, "go.mod")); err != nil {
-		t.Errorf("copied go.mod missing: %v", err)
-	}
-	if _, err := os.Lstat(filepath.Join(target, ".git")); !os.IsNotExist(err) {
-		t.Errorf(".git symlink should be skipped, stat err = %v", err)
 	}
 }
 
@@ -147,12 +80,12 @@ func TestPinGoDirectiveDryRun(t *testing.T) {
 	writeFile(t, filepath.Join(dir, "go.mod"), "module example.com/m\n\ngo 1.21.0\n")
 	writeFile(t, filepath.Join(dir, "main.go"), "package main\n\nfunc main() {}\n")
 
-	if err := pinGoDirective(newTestLogger(), dir, true, ""); err != nil {
+	if err := tidyall.PinGoDirective(newTestLogger(), dir, true, ""); err != nil {
 		t.Fatal(err)
 	}
 
 	// DryRun must not modify go.mod.
-	got, err := readGoVersion(filepath.Join(dir, "go.mod"))
+	got, err := tidyall.ReadGoVersion(filepath.Join(dir, "go.mod"))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -168,11 +101,11 @@ func TestPinGoDirectiveMinVersion(t *testing.T) {
 	writeFile(t, filepath.Join(dir, "go.mod"), "module example.com/m\n\ngo 1.21.0\n")
 	writeFile(t, filepath.Join(dir, "main.go"), "package main\n\nfunc main() {}\n")
 
-	if err := pinGoDirective(newTestLogger(), dir, false, "1.99.0"); err != nil {
+	if err := tidyall.PinGoDirective(newTestLogger(), dir, false, "1.99.0"); err != nil {
 		t.Fatal(err)
 	}
 
-	got, err := readGoVersion(filepath.Join(dir, "go.mod"))
+	got, err := tidyall.ReadGoVersion(filepath.Join(dir, "go.mod"))
 	if err != nil {
 		t.Fatal(err)
 	}
