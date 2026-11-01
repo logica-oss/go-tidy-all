@@ -10,7 +10,6 @@ import (
 	"strings"
 
 	"github.com/bobg/mingo"
-	"github.com/google/renameio/v2"
 	"github.com/k1LoW/errors"
 	"golang.org/x/mod/modfile"
 )
@@ -125,8 +124,8 @@ func writeGoVersion(goMod, version string) error {
 		return errors.WithStack(fmt.Errorf("stat go.mod: %w", err))
 	}
 
-	if err := renameio.WriteFile(goMod, data, info.Mode().Perm()); err != nil {
-		return errors.WithStack(fmt.Errorf("write go.mod: %w", err))
+	if err := writeFileAtomic(goMod, data, info.Mode().Perm()); err != nil {
+		return err
 	}
 
 	return nil
