@@ -30,3 +30,5 @@ reviews:
       instructions: "Accept by design (do not report): the release recovery behavior belongs to logica-oss/actions-toolkit; do not suggest local recovery logic."
     - path: "modules.go"
       instructions: "Accept by design (do not report): gitignore patterns are loaded once before the walk; SkipDirs filtering happens during the walk. Do not suggest restructuring pattern discovery."
+    - path: "tidyall.go"
+      instructions: "Accept by design (do not report): dry-run staging copies whole files into temp dir; large-file streaming is out of scope. Do not suggest chunked copy."
