@@ -3,7 +3,10 @@ package tidyall
 
 import (
 	"context"
+	"fmt"
 	"log/slog"
+	"regexp"
+	"strings"
 
 	"github.com/k1LoW/errors"
 )
@@ -26,6 +29,13 @@ type Config struct {
 
 // Run tidies every module under root.
 func Run(ctx context.Context, log *slog.Logger, cfg Config) error {
+	if cfg.MinGoVersion != "" {
+		if err := ValidateMinGoVersion(cfg.MinGoVersion); err != nil {
+			return err
+		}
+		cfg.MinGoVersion = normalizeMinGoVersion(cfg.MinGoVersion)
+	}
+
 	dirs, err := findModules(cfg.Root, cfg.SkipDirs)
 	if err != nil {
 		return err
@@ -45,4 +55,21 @@ func Run(ctx context.Context, log *slog.Logger, cfg Config) error {
 	}
 
 	return nil
+}
+
+// versionPattern matches Go versions like 1.24.0, with optional go prefix.
+var versionPattern = regexp.MustCompile(`^(?:go)?([1-9][0-9]*\.[0-9]+\.[0-9]+)$`)
+
+// ValidateMinGoVersion reports whether ver is an accepted min-go-version value.
+func ValidateMinGoVersion(ver string) error {
+	if !versionPattern.MatchString(ver) {
+		return errors.WithStack(fmt.Errorf("invalid min-go-version %q: must be like 1.24.0", ver))
+	}
+
+	return nil
+}
+
+// normalizeMinGoVersion strips an optional go prefix after validation.
+func normalizeMinGoVersion(ver string) string {
+	return strings.TrimPrefix(ver, "go")
 }

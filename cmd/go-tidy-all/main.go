@@ -7,7 +7,6 @@ import (
 	"fmt"
 	"log/slog"
 	"os"
-	"regexp"
 	"runtime/debug"
 	"strings"
 
@@ -64,9 +63,8 @@ func parseFlags(args []string) (tidyall.Config, bool, error) {
 	}
 
 	if cfg.MinGoVersion != "" {
-		versionPattern := regexp.MustCompile(`^(?:go)?([1-9][0-9]*\.[0-9]+\.[0-9]+)$`)
-		if !versionPattern.MatchString(cfg.MinGoVersion) {
-			return tidyall.Config{}, false, errors.WithStack(fmt.Errorf("invalid min-go-version %q: must be like 1.24.0", cfg.MinGoVersion))
+		if err := tidyall.ValidateMinGoVersion(cfg.MinGoVersion); err != nil {
+			return tidyall.Config{}, false, errors.WithStack(err)
 		}
 
 		cfg.MinGoVersion = strings.TrimPrefix(cfg.MinGoVersion, "go")
