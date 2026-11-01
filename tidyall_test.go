@@ -13,52 +13,72 @@ func newTestLogger() *slog.Logger {
 	return slog.New(slog.DiscardHandler)
 }
 
-func TestRunNoModules(t *testing.T) {
+func TestRun(t *testing.T) {
 	t.Parallel()
 
-	root := t.TempDir()
-	writeFile(t, filepath.Join(root, "main.go"), "package main\n")
-
-	err := tidyall.Run(context.Background(), newTestLogger(), tidyall.Config{Root: root})
-	if err == nil {
-		t.Fatal("Run = nil, want tidyall.ErrNoModule")
+	tests := []struct {
+		name        string
+		files       map[string]string
+		skipDirs    []string
+		wantErr     bool
+		wantVersion string
+	}{
+		{
+			name:    "no modules",
+			files:   map[string]string{"main.go": "package main\n"},
+			wantErr: true,
+		},
+		{
+			name: "dry run changes nothing",
+			files: map[string]string{
+				"go.mod":  "module example.com/m\n\ngo 1.24.0\n",
+				"main.go": "package main\n\nfunc main() {}\n",
+			},
+			wantVersion: "1.24.0",
+		},
+		{
+			name: "skips dirs",
+			files: map[string]string{
+				"go.mod":         "module example.com/root\n\ngo 1.24.0\n",
+				"main.go":        "package main\n\nfunc main() {}\n",
+				"skipme/go.mod":  "module example.com/skip\n\ngo 1.24.0\n",
+				"skipme/main.go": "package main\n\nfunc main() {}\n",
+			},
+			skipDirs:    []string{"skipme"},
+			wantVersion: "1.24.0",
+		},
 	}
-}
 
-func TestRunDryRun(t *testing.T) {
-	t.Parallel()
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 
-	root := t.TempDir()
-	writeFile(t, filepath.Join(root, "go.mod"), "module example.com/m\n\ngo 1.24.0\n")
-	writeFile(t, filepath.Join(root, "main.go"), "package main\n\nfunc main() {}\n")
+			root := t.TempDir()
+			writeFiles(t, root, tt.files)
 
-	cfg := tidyall.Config{Root: root, DryRun: true}
-	if err := tidyall.Run(context.Background(), newTestLogger(), cfg); err != nil {
-		t.Fatal(err)
-	}
+			cfg := tidyall.Config{Root: root, DryRun: true, SkipDirs: tt.skipDirs}
+			err := tidyall.Run(context.Background(), newTestLogger(), cfg)
+			if tt.wantErr {
+				if err == nil {
+					t.Fatal("Run = nil, want error")
+				}
 
-	// DryRun must not modify go.mod.
-	got, err := tidyall.ReadGoVersion(filepath.Join(root, "go.mod"))
-	if err != nil {
-		t.Fatal(err)
-	}
-	if got != "1.24.0" {
-		t.Errorf("go directive = %q, want unchanged 1.24.0", got)
-	}
-}
+				return
+			}
+			if err != nil {
+				t.Fatal(err)
+			}
 
-func TestRunSkipsDirs(t *testing.T) {
-	t.Parallel()
-
-	root := t.TempDir()
-	writeFile(t, filepath.Join(root, "go.mod"), "module example.com/root\n\ngo 1.24.0\n")
-	writeFile(t, filepath.Join(root, "main.go"), "package main\n\nfunc main() {}\n")
-	writeFile(t, filepath.Join(root, "skipme", "go.mod"), "module example.com/skip\n\ngo 1.24.0\n")
-	writeFile(t, filepath.Join(root, "skipme", "main.go"), "package main\n\nfunc main() {}\n")
-
-	cfg := tidyall.Config{Root: root, DryRun: true, SkipDirs: []string{"skipme"}}
-	if err := tidyall.Run(context.Background(), newTestLogger(), cfg); err != nil {
-		t.Fatal(err)
+			if tt.wantVersion != "" {
+				got, err := tidyall.ReadGoVersion(filepath.Join(root, "go.mod"))
+				if err != nil {
+					t.Fatal(err)
+				}
+				if got != tt.wantVersion {
+					t.Errorf("go directive = %q, want unchanged %q", got, tt.wantVersion)
+				}
+			}
+		})
 	}
 }
 
@@ -73,43 +93,40 @@ func TestTidyDryRun(t *testing.T) {
 	}
 }
 
-func TestPinGoDirectiveDryRun(t *testing.T) {
+func TestPinGoDirective(t *testing.T) {
 	t.Parallel()
 
-	dir := t.TempDir()
-	writeFile(t, filepath.Join(dir, "go.mod"), "module example.com/m\n\ngo 1.21.0\n")
-	writeFile(t, filepath.Join(dir, "main.go"), "package main\n\nfunc main() {}\n")
-
-	if err := tidyall.PinGoDirective(newTestLogger(), dir, true, ""); err != nil {
-		t.Fatal(err)
+	tests := []struct {
+		name       string
+		dryRun     bool
+		minVersion string
+		want       string
+	}{
+		{name: "dry run changes nothing", dryRun: true, minVersion: "", want: "1.21.0"},
+		{name: "min version wins", dryRun: false, minVersion: "1.99.0", want: "1.99.0"},
 	}
 
-	// DryRun must not modify go.mod.
-	got, err := tidyall.ReadGoVersion(filepath.Join(dir, "go.mod"))
-	if err != nil {
-		t.Fatal(err)
-	}
-	if got != "1.21.0" {
-		t.Errorf("go directive = %q, want unchanged 1.21.0", got)
-	}
-}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 
-func TestPinGoDirectiveMinVersion(t *testing.T) {
-	t.Parallel()
+			dir := t.TempDir()
+			writeFiles(t, dir, map[string]string{
+				"go.mod":  "module example.com/m\n\ngo 1.21.0\n",
+				"main.go": "package main\n\nfunc main() {}\n",
+			})
 
-	dir := t.TempDir()
-	writeFile(t, filepath.Join(dir, "go.mod"), "module example.com/m\n\ngo 1.21.0\n")
-	writeFile(t, filepath.Join(dir, "main.go"), "package main\n\nfunc main() {}\n")
+			if err := tidyall.PinGoDirective(newTestLogger(), dir, tt.dryRun, tt.minVersion); err != nil {
+				t.Fatal(err)
+			}
 
-	if err := tidyall.PinGoDirective(newTestLogger(), dir, false, "1.99.0"); err != nil {
-		t.Fatal(err)
-	}
-
-	got, err := tidyall.ReadGoVersion(filepath.Join(dir, "go.mod"))
-	if err != nil {
-		t.Fatal(err)
-	}
-	if got != "1.99.0" {
-		t.Errorf("go directive = %q, want 1.99.0", got)
+			got, err := tidyall.ReadGoVersion(filepath.Join(dir, "go.mod"))
+			if err != nil {
+				t.Fatal(err)
+			}
+			if got != tt.want {
+				t.Errorf("go directive = %q, want %q", got, tt.want)
+			}
+		})
 	}
 }

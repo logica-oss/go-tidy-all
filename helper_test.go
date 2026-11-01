@@ -31,6 +31,14 @@ func resolveRoot(t *testing.T, root string) string {
 	return resolved
 }
 
+func writeFiles(t *testing.T, root string, files map[string]string) {
+	t.Helper()
+
+	for rel, content := range files {
+		writeFile(t, filepath.Join(root, filepath.FromSlash(rel)), content)
+	}
+}
+
 func mkParent(path string) error {
 	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
 		return errors.WithStack(fmt.Errorf("create parent dir: %w", err))

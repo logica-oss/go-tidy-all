@@ -11,142 +11,128 @@ import (
 func TestFindModules(t *testing.T) {
 	t.Parallel()
 
-	root := t.TempDir()
-	writeFile(t, filepath.Join(root, "go.mod"), "module example.com/root\n\ngo 1.24.0\n")
-	writeFile(t, filepath.Join(root, "sub", "go.mod"), "module example.com/sub\n\ngo 1.24.0\n")
-	writeFile(t, filepath.Join(root, "sub", "nested", "go.mod"), "module example.com/nested\n\ngo 1.24.0\n")
-	writeFile(t, filepath.Join(root, "notamodule", "main.go"), "package main\n")
-
-	got, err := tidyall.FindModules(root, nil)
-	if err != nil {
-		t.Fatal(err)
+	tests := []struct {
+		name     string
+		files    map[string]string
+		skipDirs []string
+		want     []string
+	}{
+		{
+			name: "nested modules",
+			files: map[string]string{
+				"go.mod":             "module example.com/root\n\ngo 1.24.0\n",
+				"sub/go.mod":         "module example.com/sub\n\ngo 1.24.0\n",
+				"sub/nested/go.mod":  "module example.com/nested\n\ngo 1.24.0\n",
+				"notamodule/main.go": "package main\n",
+			},
+			want: []string{".", "sub", "sub/nested"},
+		},
+		{
+			name:  "empty",
+			files: map[string]string{"main.go": "package main\n"},
+			want:  nil,
+		},
+		{
+			name: "skip dirs",
+			files: map[string]string{
+				"go.mod":        "module example.com/root\n\ngo 1.24.0\n",
+				"skipme/go.mod": "module example.com/skip\n\ngo 1.24.0\n",
+				"keep/go.mod":   "module example.com/keep\n\ngo 1.24.0\n",
+			},
+			skipDirs: []string{"skipme"},
+			want:     []string{".", "keep"},
+		},
+		{
+			name: "skips git",
+			files: map[string]string{
+				"go.mod":            "module example.com/root\n\ngo 1.24.0\n",
+				".git/hooks/go.mod": "module example.com/hooks\n\ngo 1.24.0\n",
+			},
+			want: []string{"."},
+		},
+		{
+			name: "skips ignored dir",
+			files: map[string]string{
+				".gitignore":     "ignored/\n",
+				"go.mod":         "module example.com/root\n\ngo 1.24.0\n",
+				"ignored/go.mod": "module example.com/ignored\n\ngo 1.24.0\n",
+			},
+			want: []string{"."},
+		},
+		{
+			name: "skips ignored file",
+			files: map[string]string{
+				".gitignore":  "sub/go.mod\n",
+				"go.mod":      "module example.com/root\n\ngo 1.24.0\n",
+				"sub/go.mod":  "module example.com/sub\n\ngo 1.24.0\n",
+				"keep/go.mod": "module example.com/keep\n\ngo 1.24.0\n",
+			},
+			want: []string{".", "keep"},
+		},
 	}
 
-	resolved := resolveRoot(t, root)
-	want := []string{resolved, filepath.Join(resolved, "sub"), filepath.Join(resolved, "sub", "nested")}
-	slices.Sort(got)
-	slices.Sort(want)
-	if !slices.Equal(got, want) {
-		t.Errorf("tidyall.FindModules = %v, want %v", got, want)
-	}
-}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 
-func TestFindModulesEmpty(t *testing.T) {
-	t.Parallel()
+			root := t.TempDir()
+			writeFiles(t, root, tt.files)
 
-	root := t.TempDir()
-	writeFile(t, filepath.Join(root, "main.go"), "package main\n")
+			got, err := tidyall.FindModules(root, tt.skipDirs)
+			if err != nil {
+				t.Fatal(err)
+			}
 
-	got, err := tidyall.FindModules(root, nil)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if len(got) != 0 {
-		t.Errorf("tidyall.FindModules = %v, want empty", got)
-	}
-}
-
-func TestFindModulesSkipDirs(t *testing.T) {
-	t.Parallel()
-
-	root := t.TempDir()
-	writeFile(t, filepath.Join(root, "go.mod"), "module example.com/root\n\ngo 1.24.0\n")
-	writeFile(t, filepath.Join(root, "skipme", "go.mod"), "module example.com/skip\n\ngo 1.24.0\n")
-	writeFile(t, filepath.Join(root, "keep", "go.mod"), "module example.com/keep\n\ngo 1.24.0\n")
-
-	got, err := tidyall.FindModules(root, []string{"skipme"})
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	resolved := resolveRoot(t, root)
-	want := []string{resolved, filepath.Join(resolved, "keep")}
-	slices.Sort(got)
-	slices.Sort(want)
-	if !slices.Equal(got, want) {
-		t.Errorf("tidyall.FindModules = %v, want %v", got, want)
-	}
-}
-
-func TestFindModulesSkipsGit(t *testing.T) {
-	t.Parallel()
-
-	root := t.TempDir()
-	writeFile(t, filepath.Join(root, "go.mod"), "module example.com/root\n\ngo 1.24.0\n")
-	writeFile(t, filepath.Join(root, ".git", "hooks", "go.mod"), "module example.com/hooks\n\ngo 1.24.0\n")
-
-	got, err := tidyall.FindModules(root, nil)
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	resolved := resolveRoot(t, root)
-	if len(got) != 1 || got[0] != resolved {
-		t.Errorf("tidyall.FindModules = %v, want [%s]", got, resolved)
-	}
-}
-
-func TestFindModulesSkipsIgnoredGoMod(t *testing.T) {
-	t.Parallel()
-
-	root := t.TempDir()
-	writeFile(t, filepath.Join(root, ".gitignore"), "ignored/\n")
-	writeFile(t, filepath.Join(root, "go.mod"), "module example.com/root\n\ngo 1.24.0\n")
-	writeFile(t, filepath.Join(root, "ignored", "go.mod"), "module example.com/ignored\n\ngo 1.24.0\n")
-
-	got, err := tidyall.FindModules(root, nil)
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	resolved := resolveRoot(t, root)
-	if len(got) != 1 || got[0] != resolved {
-		t.Errorf("tidyall.FindModules = %v, want [%s]", got, resolved)
-	}
-}
-
-func TestFindModulesSkipsIgnoredFile(t *testing.T) {
-	t.Parallel()
-
-	root := t.TempDir()
-	writeFile(t, filepath.Join(root, ".gitignore"), "sub/go.mod\n")
-	writeFile(t, filepath.Join(root, "go.mod"), "module example.com/root\n\ngo 1.24.0\n")
-	writeFile(t, filepath.Join(root, "sub", "go.mod"), "module example.com/sub\n\ngo 1.24.0\n")
-	writeFile(t, filepath.Join(root, "keep", "go.mod"), "module example.com/keep\n\ngo 1.24.0\n")
-
-	got, err := tidyall.FindModules(root, nil)
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	resolved := resolveRoot(t, root)
-	want := []string{resolved, filepath.Join(resolved, "keep")}
-	slices.Sort(got)
-	slices.Sort(want)
-	if !slices.Equal(got, want) {
-		t.Errorf("tidyall.FindModules = %v, want %v", got, want)
+			resolved := resolveRoot(t, root)
+			want := make([]string, 0, len(tt.want))
+			for _, rel := range tt.want {
+				if rel == "." {
+					want = append(want, resolved)
+				} else {
+					want = append(want, filepath.Join(resolved, filepath.FromSlash(rel)))
+				}
+			}
+			slices.Sort(got)
+			slices.Sort(want)
+			if !slices.Equal(got, want) {
+				t.Errorf("tidyall.FindModules = %v, want %v", got, want)
+			}
+		})
 	}
 }
 
 func TestDirFilterSkip(t *testing.T) {
 	t.Parallel()
 
-	root := t.TempDir()
-	filter, err := tidyall.NewDirFilter(root, []string{"skipme"})
-	if err != nil {
-		t.Fatal(err)
+	tests := []struct {
+		name  string
+		path  string
+		isDir bool
+		want  bool
+	}{
+		{name: "skip dir", path: "skipme", isDir: true, want: true},
+		{name: "keep dir", path: "keep", isDir: true, want: false},
+		{name: "git dir", path: ".git", isDir: true, want: true},
+		{name: "root", path: ".", isDir: true, want: false},
 	}
 
-	if !filter.Skip(filepath.Join(root, "skipme"), true) {
-		t.Error("skip(skipme) = false, want true")
-	}
-	if filter.Skip(filepath.Join(root, "keep"), true) {
-		t.Error("skip(keep) = true, want false")
-	}
-	if !filter.Skip(filepath.Join(root, ".git"), true) {
-		t.Error("skip(.git) = false, want true")
-	}
-	if filter.Skip(root, true) {
-		t.Error("skip(root) = true, want false")
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+
+			root := t.TempDir()
+			filter, err := tidyall.NewDirFilter(root, []string{"skipme"})
+			if err != nil {
+				t.Fatal(err)
+			}
+
+			path := root
+			if tt.path != "." {
+				path = filepath.Join(root, tt.path)
+			}
+			if got := filter.Skip(path, tt.isDir); got != tt.want {
+				t.Errorf("filter.Skip(%q) = %v, want %v", tt.path, got, tt.want)
+			}
+		})
 	}
 }

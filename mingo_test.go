@@ -69,80 +69,102 @@ func TestGoVersionPart(t *testing.T) {
 func TestReadGoVersion(t *testing.T) {
 	t.Parallel()
 
-	dir := t.TempDir()
-	path := filepath.Join(dir, "go.mod")
-	writeFile(t, path, "module example.com/m\n\ngo 1.24.0\n")
-
-	got, err := tidyall.ReadGoVersion(path)
-	if err != nil {
-		t.Fatal(err)
+	tests := []struct {
+		name    string
+		files   map[string]string
+		want    string
+		wantErr bool
+	}{
+		{
+			name:  "directive",
+			files: map[string]string{"go.mod": "module example.com/m\n\ngo 1.24.0\n"},
+			want:  "1.24.0",
+		},
+		{
+			name:  "no directive",
+			files: map[string]string{"go.mod": "module example.com/m\n"},
+			want:  "",
+		},
+		{
+			name:    "missing file",
+			files:   map[string]string{},
+			wantErr: true,
+		},
+		{
+			name:    "invalid file",
+			files:   map[string]string{"go.mod": "not a go.mod {{{"},
+			wantErr: true,
+		},
 	}
-	if got != "1.24.0" {
-		t.Errorf("tidyall.ReadGoVersion = %q, want %q", got, "1.24.0")
-	}
-}
 
-func TestReadGoVersionNoDirective(t *testing.T) {
-	t.Parallel()
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 
-	dir := t.TempDir()
-	path := filepath.Join(dir, "go.mod")
-	writeFile(t, path, "module example.com/m\n")
+			dir := t.TempDir()
+			writeFiles(t, dir, tt.files)
 
-	got, err := tidyall.ReadGoVersion(path)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if got != "" {
-		t.Errorf("tidyall.ReadGoVersion = %q, want empty", got)
-	}
-}
+			got, err := tidyall.ReadGoVersion(filepath.Join(dir, "go.mod"))
+			if tt.wantErr {
+				if err == nil {
+					t.Error("tidyall.ReadGoVersion = nil, want error")
+				}
 
-func TestReadGoVersionMissing(t *testing.T) {
-	t.Parallel()
-
-	if _, err := tidyall.ReadGoVersion(filepath.Join(t.TempDir(), "go.mod")); err == nil {
-		t.Error("tidyall.ReadGoVersion = nil, want error")
+				return
+			}
+			if err != nil {
+				t.Fatal(err)
+			}
+			if got != tt.want {
+				t.Errorf("tidyall.ReadGoVersion = %q, want %q", got, tt.want)
+			}
+		})
 	}
 }
 
 func TestWriteGoVersion(t *testing.T) {
 	t.Parallel()
 
-	dir := t.TempDir()
-	path := filepath.Join(dir, "go.mod")
-	writeFile(t, path, "module example.com/m\n\ngo 1.23.0\n")
-
-	if err := tidyall.WriteGoVersion(path, "1.24.0"); err != nil {
-		t.Fatal(err)
+	tests := []struct {
+		name    string
+		content string
+		version string
+		want    string
+	}{
+		{
+			name:    "update directive",
+			content: "module example.com/m\n\ngo 1.23.0\n",
+			version: "1.24.0",
+			want:    "1.24.0",
+		},
+		{
+			name:    "add directive",
+			content: "module example.com/m\n",
+			version: "1.24.0",
+			want:    "1.24.0",
+		},
 	}
 
-	got, err := tidyall.ReadGoVersion(path)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if got != "1.24.0" {
-		t.Errorf("tidyall.ReadGoVersion after write = %q, want %q", got, "1.24.0")
-	}
-}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 
-func TestWriteGoVersionAddsDirective(t *testing.T) {
-	t.Parallel()
+			dir := t.TempDir()
+			path := filepath.Join(dir, "go.mod")
+			writeFile(t, path, tt.content)
 
-	dir := t.TempDir()
-	path := filepath.Join(dir, "go.mod")
-	writeFile(t, path, "module example.com/m\n")
+			if err := tidyall.WriteGoVersion(path, tt.version); err != nil {
+				t.Fatal(err)
+			}
 
-	if err := tidyall.WriteGoVersion(path, "1.24.0"); err != nil {
-		t.Fatal(err)
-	}
-
-	got, err := tidyall.ReadGoVersion(path)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if got != "1.24.0" {
-		t.Errorf("tidyall.ReadGoVersion after write = %q, want %q", got, "1.24.0")
+			got, err := tidyall.ReadGoVersion(path)
+			if err != nil {
+				t.Fatal(err)
+			}
+			if got != tt.want {
+				t.Errorf("tidyall.ReadGoVersion after write = %q, want %q", got, tt.want)
+			}
+		})
 	}
 }
 

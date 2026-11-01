@@ -179,80 +179,51 @@ func TestE2E(t *testing.T) {
 		t.Skip("set TIDYALL_E2E=1 to run e2e")
 	}
 
-	t.Run("tidies single module", func(t *testing.T) {
-		t.Parallel()
+	tests := []struct {
+		name           string
+		fixture        string
+		args           []string
+		wantErr        bool
+		checkUnchanged bool
+	}{
+		{name: "tidies single module", fixture: "single", args: []string{}},
+		{name: "tidies multiple modules", fixture: "multi", args: []string{}},
+		{name: "dry run changes nothing", fixture: "single", args: []string{"-n"}, checkUnchanged: true},
+		{name: "skips dirs", fixture: "skip", args: []string{"--skip-dirs", "skip", "-n"}},
+		{name: "no modules fails", fixture: "empty", wantErr: true},
+		{name: "invalid min-go-version fails before changes", fixture: "single", args: []string{"--min-go-version", "bad"}, wantErr: true},
+	}
 
-		root := t.TempDir()
-		copyFixture(t, "single", root)
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 
-		got := runTidy(t, root, "--root", root)
-		if got.code != 0 {
-			t.Fatalf("exit code = %d, want 0\nstdout: %s\nstderr: %s", got.code, got.stdout, got.stderr)
-		}
-	})
+			root := t.TempDir()
+			copyFixture(t, tt.fixture, root)
 
-	t.Run("tidies multiple modules", func(t *testing.T) {
-		t.Parallel()
+			var before string
+			if tt.checkUnchanged {
+				before = readFile(t, filepath.Join(root, "go.mod"))
+			}
 
-		root := t.TempDir()
-		copyFixture(t, "multi", root)
+			args := append([]string{"--root", root}, tt.args...)
+			got := runTidy(t, root, args...)
+			if tt.wantErr {
+				if got.code == 0 {
+					t.Errorf("exit code = 0, want non-zero")
+				}
 
-		got := runTidy(t, root, "--root", root)
-		if got.code != 0 {
-			t.Fatalf("exit code = %d, want 0\nstdout: %s\nstderr: %s", got.code, got.stdout, got.stderr)
-		}
-	})
+				return
+			}
+			if got.code != 0 {
+				t.Fatalf("exit code = %d, want 0\nstdout: %s\nstderr: %s", got.code, got.stdout, got.stderr)
+			}
 
-	t.Run("dry run changes nothing", func(t *testing.T) {
-		t.Parallel()
-
-		root := t.TempDir()
-		copyFixture(t, "single", root)
-		before := readFile(t, filepath.Join(root, "go.mod"))
-
-		got := runTidy(t, root, "--root", root, "-n")
-		if got.code != 0 {
-			t.Fatalf("exit code = %d, want 0\nstdout: %s\nstderr: %s", got.code, got.stdout, got.stderr)
-		}
-
-		if after := readFile(t, filepath.Join(root, "go.mod")); after != before {
-			t.Errorf("go.mod changed in dry run:\n%s", after)
-		}
-	})
-
-	t.Run("skips dirs", func(t *testing.T) {
-		t.Parallel()
-
-		root := t.TempDir()
-		copyFixture(t, "skip", root)
-
-		got := runTidy(t, root, "--root", root, "--skip-dirs", "skip", "-n")
-		if got.code != 0 {
-			t.Fatalf("exit code = %d, want 0\nstdout: %s\nstderr: %s", got.code, got.stdout, got.stderr)
-		}
-	})
-
-	t.Run("no modules fails", func(t *testing.T) {
-		t.Parallel()
-
-		root := t.TempDir()
-		copyFixture(t, "empty", root)
-
-		got := runTidy(t, root, "--root", root)
-		if got.code == 0 {
-			t.Errorf("exit code = 0, want non-zero")
-		}
-	})
-
-	t.Run("invalid min-go-version fails before changes", func(t *testing.T) {
-		t.Parallel()
-
-		root := t.TempDir()
-		copyFixture(t, "single", root)
-
-		got := runTidy(t, root, "--root", root, "--min-go-version", "bad")
-		if got.code == 0 {
-			t.Errorf("exit code = 0, want non-zero")
-		}
-	})
+			if tt.checkUnchanged {
+				if after := readFile(t, filepath.Join(root, "go.mod")); after != before {
+					t.Errorf("go.mod changed in dry run:\n%s", after)
+				}
+			}
+		})
+	}
 }
