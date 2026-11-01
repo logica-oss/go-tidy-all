@@ -42,7 +42,7 @@ tasks:
           BINARY: go
           INSTALL_DOC: https://go.dev/doc/install
     cmds:
-      - go run ./cmd/go-tidy-all
+      - go run ./cmd/go-tidy-all --skip-dirs e2e/testdata
 
   lint:
     desc: Lint
