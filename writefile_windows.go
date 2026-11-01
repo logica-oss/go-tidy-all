@@ -11,6 +11,9 @@ import (
 )
 
 func writeFileAtomic(path string, data []byte, perm os.FileMode) error {
+	// Best effort crash-safe write: os.Rename is not documented as atomic on
+	// Windows, so this only guarantees no partial file remains on error, not
+	// atomic replacement.
 	tmp, err := os.CreateTemp(filepath.Dir(path), ".tmp-*")
 	if err != nil {
 		return errors.WithStack(fmt.Errorf("create temp file: %w", err))
