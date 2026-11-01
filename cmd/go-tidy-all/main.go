@@ -64,8 +64,9 @@ func parseFlags(args []string) (tidyall.Config, bool, error) {
 	}
 
 	if cfg.MinGoVersion != "" {
-		if err := validateGoVersion(cfg.MinGoVersion); err != nil {
-			return tidyall.Config{}, false, err
+		versionPattern := regexp.MustCompile(`^(?:go)?([1-9][0-9]*\.[0-9]+\.[0-9]+)$`)
+		if !versionPattern.MatchString(cfg.MinGoVersion) {
+			return tidyall.Config{}, false, errors.WithStack(fmt.Errorf("invalid min-go-version %q: must be like 1.24.0", cfg.MinGoVersion))
 		}
 
 		cfg.MinGoVersion = strings.TrimPrefix(cfg.MinGoVersion, "go")
@@ -81,17 +82,6 @@ func parseFlags(args []string) (tidyall.Config, bool, error) {
 	}
 
 	return cfg, showVersion, nil
-}
-
-// versionPattern matches Go versions like 1.24.0, with optional go prefix.
-var versionPattern = regexp.MustCompile(`^(?:go)?([1-9][0-9]*\.[0-9]+\.[0-9]+)$`)
-
-func validateGoVersion(ver string) error {
-	if !versionPattern.MatchString(ver) {
-		return errors.WithStack(fmt.Errorf("invalid min-go-version %q: must be like 1.24.0", ver))
-	}
-
-	return nil
 }
 
 func resolveVersion() string {
