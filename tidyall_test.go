@@ -1,4 +1,4 @@
-package tidyall_test
+package tidyall
 
 import (
 	"context"
@@ -6,8 +6,6 @@ import (
 	"os"
 	"path/filepath"
 	"testing"
-
-	tidyall "github.com/logica-oss/go-tidy-all"
 )
 
 func newTestLogger() *slog.Logger {
@@ -20,7 +18,7 @@ func TestRunNoModules(t *testing.T) {
 	root := t.TempDir()
 	writeFile(t, filepath.Join(root, "main.go"), "package main\n")
 
-	err := tidyall.Run(context.Background(), newTestLogger(), tidyall.Config{Root: root})
+	err := Run(context.Background(), newTestLogger(), Config{Root: root})
 	if err == nil {
 		t.Fatal("Run = nil, want ErrNoModule")
 	}
@@ -33,13 +31,13 @@ func TestRunDryRun(t *testing.T) {
 	writeFile(t, filepath.Join(root, "go.mod"), "module example.com/m\n\ngo 1.24.0\n")
 	writeFile(t, filepath.Join(root, "main.go"), "package main\n\nfunc main() {}\n")
 
-	cfg := tidyall.Config{Root: root, DryRun: true}
-	if err := tidyall.Run(context.Background(), newTestLogger(), cfg); err != nil {
+	cfg := Config{Root: root, DryRun: true}
+	if err := Run(context.Background(), newTestLogger(), cfg); err != nil {
 		t.Fatal(err)
 	}
 
 	// DryRun must not modify go.mod.
-	got, err := tidyall.ReadGoVersion(filepath.Join(root, "go.mod"))
+	got, err := readGoVersion(filepath.Join(root, "go.mod"))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -57,8 +55,8 @@ func TestRunSkipsDirs(t *testing.T) {
 	writeFile(t, filepath.Join(root, "skipme", "go.mod"), "module example.com/skip\n\ngo 1.24.0\n")
 	writeFile(t, filepath.Join(root, "skipme", "main.go"), "package main\n\nfunc main() {}\n")
 
-	cfg := tidyall.Config{Root: root, DryRun: true, SkipDirs: []string{"skipme"}}
-	if err := tidyall.Run(context.Background(), newTestLogger(), cfg); err != nil {
+	cfg := Config{Root: root, DryRun: true, SkipDirs: []string{"skipme"}}
+	if err := Run(context.Background(), newTestLogger(), cfg); err != nil {
 		t.Fatal(err)
 	}
 }
@@ -69,7 +67,7 @@ func TestTidyDryRun(t *testing.T) {
 	root := t.TempDir()
 	writeFile(t, filepath.Join(root, "go.mod"), "module example.com/m\n\ngo 1.24.0\n")
 
-	if err := tidyall.Tidy(context.Background(), newTestLogger(), root, true); err != nil {
+	if err := tidy(context.Background(), newTestLogger(), root, true); err != nil {
 		t.Fatal(err)
 	}
 }
@@ -81,7 +79,7 @@ func TestStageModule(t *testing.T) {
 	writeFile(t, filepath.Join(root, "go.mod"), "module example.com/m\n\ngo 1.24.0\n")
 	writeFile(t, filepath.Join(root, "sub", "main.go"), "package main\n")
 
-	staged, cleanup, err := tidyall.StageModule(context.Background(), newTestLogger(), root)
+	staged, cleanup, err := stageModule(context.Background(), newTestLogger(), root)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -104,7 +102,7 @@ func TestCopyDirSkipsGit(t *testing.T) {
 
 	dst := t.TempDir()
 	target := filepath.Join(dst, "copy")
-	if err := tidyall.CopyDir(context.Background(), newTestLogger(), src, target); err != nil {
+	if err := copyDir(context.Background(), newTestLogger(), src, target); err != nil {
 		t.Fatal(err)
 	}
 
@@ -130,7 +128,7 @@ func TestCopyDirSkipsGitSymlink(t *testing.T) {
 
 	dst := t.TempDir()
 	target := filepath.Join(dst, "copy")
-	if err := tidyall.CopyDir(context.Background(), newTestLogger(), src, target); err != nil {
+	if err := copyDir(context.Background(), newTestLogger(), src, target); err != nil {
 		t.Fatal(err)
 	}
 
@@ -149,12 +147,12 @@ func TestPinGoDirectiveDryRun(t *testing.T) {
 	writeFile(t, filepath.Join(dir, "go.mod"), "module example.com/m\n\ngo 1.21.0\n")
 	writeFile(t, filepath.Join(dir, "main.go"), "package main\n\nfunc main() {}\n")
 
-	if err := tidyall.PinGoDirective(newTestLogger(), dir, true, ""); err != nil {
+	if err := pinGoDirective(newTestLogger(), dir, true, ""); err != nil {
 		t.Fatal(err)
 	}
 
 	// DryRun must not modify go.mod.
-	got, err := tidyall.ReadGoVersion(filepath.Join(dir, "go.mod"))
+	got, err := readGoVersion(filepath.Join(dir, "go.mod"))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -170,11 +168,11 @@ func TestPinGoDirectiveMinVersion(t *testing.T) {
 	writeFile(t, filepath.Join(dir, "go.mod"), "module example.com/m\n\ngo 1.21.0\n")
 	writeFile(t, filepath.Join(dir, "main.go"), "package main\n\nfunc main() {}\n")
 
-	if err := tidyall.PinGoDirective(newTestLogger(), dir, false, "1.99.0"); err != nil {
+	if err := pinGoDirective(newTestLogger(), dir, false, "1.99.0"); err != nil {
 		t.Fatal(err)
 	}
 
-	got, err := tidyall.ReadGoVersion(filepath.Join(dir, "go.mod"))
+	got, err := readGoVersion(filepath.Join(dir, "go.mod"))
 	if err != nil {
 		t.Fatal(err)
 	}

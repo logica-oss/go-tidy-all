@@ -1,10 +1,8 @@
-package tidyall_test
+package tidyall
 
 import (
 	"path/filepath"
 	"testing"
-
-	tidyall "github.com/logica-oss/go-tidy-all"
 )
 
 func TestCompareGoVersion(t *testing.T) {
@@ -33,8 +31,8 @@ func TestCompareGoVersion(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			t.Parallel()
 
-			if got := tidyall.CompareGoVersion(tt.a, tt.b); got != tt.want {
-				t.Errorf("tidyall.CompareGoVersion(%q, %q) = %d, want %d", tt.a, tt.b, got, tt.want)
+			if got := compareGoVersion(tt.a, tt.b); got != tt.want {
+				t.Errorf("compareGoVersion(%q, %q) = %d, want %d", tt.a, tt.b, got, tt.want)
 			}
 		})
 	}
@@ -59,8 +57,8 @@ func TestGoVersionPart(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			t.Parallel()
 
-			if got := tidyall.GoVersionPart(tt.parts, tt.index); got != tt.want {
-				t.Errorf("tidyall.GoVersionPart(%v, %d) = %d, want %d", tt.parts, tt.index, got, tt.want)
+			if got := goVersionPart(tt.parts, tt.index); got != tt.want {
+				t.Errorf("goVersionPart(%v, %d) = %d, want %d", tt.parts, tt.index, got, tt.want)
 			}
 		})
 	}
@@ -84,7 +82,7 @@ func TestReadGoVersion(t *testing.T) {
 	path := filepath.Join(dir, "go.mod")
 	writeFile(t, path, "module example.com/m\n\ngo 1.24.0\n")
 
-	got, err := tidyall.ReadGoVersion(path)
+	got, err := readGoVersion(path)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -100,7 +98,7 @@ func TestReadGoVersionNoDirective(t *testing.T) {
 	path := filepath.Join(dir, "go.mod")
 	writeFile(t, path, "module example.com/m\n")
 
-	got, err := tidyall.ReadGoVersion(path)
+	got, err := readGoVersion(path)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -112,7 +110,7 @@ func TestReadGoVersionNoDirective(t *testing.T) {
 func TestReadGoVersionMissing(t *testing.T) {
 	t.Parallel()
 
-	if _, err := tidyall.ReadGoVersion(filepath.Join(t.TempDir(), "go.mod")); err == nil {
+	if _, err := readGoVersion(filepath.Join(t.TempDir(), "go.mod")); err == nil {
 		t.Error("readGoVersion = nil, want error")
 	}
 }
@@ -124,11 +122,11 @@ func TestWriteGoVersion(t *testing.T) {
 	path := filepath.Join(dir, "go.mod")
 	writeFile(t, path, "module example.com/m\n\ngo 1.23.0\n")
 
-	if err := tidyall.WriteGoVersion(path, "1.24.0"); err != nil {
+	if err := writeGoVersion(path, "1.24.0"); err != nil {
 		t.Fatal(err)
 	}
 
-	got, err := tidyall.ReadGoVersion(path)
+	got, err := readGoVersion(path)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -144,11 +142,11 @@ func TestWriteGoVersionAddsDirective(t *testing.T) {
 	path := filepath.Join(dir, "go.mod")
 	writeFile(t, path, "module example.com/m\n")
 
-	if err := tidyall.WriteGoVersion(path, "1.24.0"); err != nil {
+	if err := writeGoVersion(path, "1.24.0"); err != nil {
 		t.Fatal(err)
 	}
 
-	got, err := tidyall.ReadGoVersion(path)
+	got, err := readGoVersion(path)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -164,7 +162,7 @@ func TestParseModFileInvalid(t *testing.T) {
 	path := filepath.Join(dir, "go.mod")
 	writeFile(t, path, "not a go.mod {{{")
 
-	if _, err := tidyall.ParseModFile(path); err == nil {
+	if _, err := parseModFile(path); err == nil {
 		t.Error("parseModFile = nil, want error")
 	}
 }

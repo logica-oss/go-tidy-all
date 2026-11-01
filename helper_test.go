@@ -1,4 +1,4 @@
-package tidyall_test
+package tidyall
 
 import (
 	"fmt"
