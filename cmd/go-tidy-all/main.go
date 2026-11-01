@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"log/slog"
 	"os"
+	"regexp"
 	"runtime/debug"
 	"strings"
 
@@ -82,23 +83,12 @@ func parseFlags(args []string) (tidyall.Config, bool, error) {
 	return cfg, showVersion, nil
 }
 
+// versionPattern matches Go versions like 1.24.0, with optional go prefix.
+var versionPattern = regexp.MustCompile(`^(?:go)?([1-9][0-9]*\.[0-9]+\.[0-9]+)$`)
+
 func validateGoVersion(ver string) error {
-	ver = strings.TrimPrefix(ver, "go")
-	parts := strings.Split(ver, ".")
-	if len(parts) < 2 || len(parts) > 3 {
+	if !versionPattern.MatchString(ver) {
 		return errors.WithStack(fmt.Errorf("invalid min-go-version %q: must be like 1.24.0", ver))
-	}
-
-	for _, part := range parts {
-		if part == "" {
-			return errors.WithStack(fmt.Errorf("invalid min-go-version %q: must be like 1.24.0", ver))
-		}
-
-		for _, r := range part {
-			if r < '0' || r > '9' {
-				return errors.WithStack(fmt.Errorf("invalid min-go-version %q: must be like 1.24.0", ver))
-			}
-		}
 	}
 
 	return nil
