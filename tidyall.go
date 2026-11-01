@@ -58,7 +58,7 @@ func Run(ctx context.Context, log *slog.Logger, cfg Config) error {
 }
 
 // versionPattern matches Go versions like 1.24.0, with optional go prefix.
-var versionPattern = regexp.MustCompile(`^(?:go)?([1-9][0-9]*\.[0-9]+\.[0-9]+)$`)
+var versionPattern = regexp.MustCompile(`^(?:go)?([1-9][0-9]*\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*))$`)
 
 // ValidateMinGoVersion reports whether ver is an accepted min-go-version value.
 func ValidateMinGoVersion(ver string) error {
