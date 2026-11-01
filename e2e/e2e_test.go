@@ -95,35 +95,8 @@ func runTidy(t *testing.T, root string, args ...string) result {
 func copyFixture(t *testing.T, fixture, root string) {
 	t.Helper()
 
-	src := filepath.Join("testdata", fixture)
-
-	entries, err := os.ReadDir(src)
-	if err != nil {
-		t.Fatalf("read fixture %s: %v", fixture, err)
-	}
-
-	for _, entry := range entries {
-		srcPath := filepath.Join(src, entry.Name())
-		dstPath := filepath.Join(root, entry.Name())
-
-		if entry.IsDir() {
-			if err := copyDir(srcPath, dstPath); err != nil {
-				t.Fatalf("copy fixture dir: %v", err)
-			}
-
-			continue
-		}
-
-		data, err := os.ReadFile(srcPath)
-		if err != nil {
-			t.Fatalf("read fixture file: %v", err)
-		}
-		if err := os.MkdirAll(filepath.Dir(dstPath), 0o755); err != nil {
-			t.Fatalf("create parent dir: %v", err)
-		}
-		if err := os.WriteFile(dstPath, data, 0o644); err != nil {
-			t.Fatalf("write file: %v", err)
-		}
+	if err := copyDir(filepath.Join("testdata", fixture), root); err != nil {
+		t.Fatalf("copy fixture %s: %v", fixture, err)
 	}
 }
 
@@ -172,6 +145,25 @@ func readFile(t *testing.T, path string) string {
 	return string(data)
 }
 
+func goVersion(t *testing.T, path string) string {
+	t.Helper()
+
+	data, err := os.ReadFile(path)
+	if err != nil {
+		t.Fatalf("read file: %v", err)
+	}
+
+	for line := range strings.Lines(string(data)) {
+		if v, ok := strings.CutPrefix(strings.TrimSpace(line), "go "); ok {
+			return strings.TrimSpace(v)
+		}
+	}
+
+	t.Fatalf("no go directive in %s", path)
+
+	return ""
+}
+
 func TestE2E(t *testing.T) {
 	t.Parallel()
 
@@ -184,14 +176,32 @@ func TestE2E(t *testing.T) {
 		fixture        string
 		args           []string
 		wantErr        bool
-		checkUnchanged bool
+		checkUnchanged []string
+		checkPinned    map[string]string
 	}{
 		{name: "tidies single module", fixture: "single", args: []string{}},
 		{name: "tidies multiple modules", fixture: "multi", args: []string{}},
-		{name: "dry run changes nothing", fixture: "single", args: []string{"-n"}, checkUnchanged: true},
-		{name: "skips dirs", fixture: "skip", args: []string{"--skip-dirs", "skip", "-n"}},
-		{name: "no modules fails", fixture: "empty", wantErr: true},
-		{name: "invalid min-go-version fails before changes", fixture: "single", args: []string{"--min-go-version", "bad"}, wantErr: true},
+		{name: "dry run changes nothing", fixture: "single", args: []string{"-n"}, checkUnchanged: []string{"go.mod"}},
+		{
+			name:    "skips dirs",
+			fixture: "skip",
+			args:    []string{"--skip-dirs", "skip", "--min-go-version", "1.99.0"},
+			checkUnchanged: []string{
+				"skip/go.mod",
+			},
+			checkPinned: map[string]string{
+				"go.mod":      "1.99.0",
+				"keep/go.mod": "1.99.0",
+			},
+		},
+		{name: "no modules fails", fixture: "empty", wantErr: true, checkUnchanged: []string{"main.go"}},
+		{
+			name:           "invalid min-go-version fails before changes",
+			fixture:        "single",
+			args:           []string{"--min-go-version", "bad"},
+			wantErr:        true,
+			checkUnchanged: []string{"go.mod"},
+		},
 	}
 
 	for _, tt := range tests {
@@ -201,9 +211,9 @@ func TestE2E(t *testing.T) {
 			root := t.TempDir()
 			copyFixture(t, tt.fixture, root)
 
-			var before string
-			if tt.checkUnchanged {
-				before = readFile(t, filepath.Join(root, "go.mod"))
+			before := make(map[string]string, len(tt.checkUnchanged))
+			for _, rel := range tt.checkUnchanged {
+				before[rel] = readFile(t, filepath.Join(root, filepath.FromSlash(rel)))
 			}
 
 			args := append([]string{"--root", root}, tt.args...)
@@ -212,16 +222,20 @@ func TestE2E(t *testing.T) {
 				if got.code == 0 {
 					t.Errorf("exit code = 0, want non-zero")
 				}
-
-				return
-			}
-			if got.code != 0 {
+			} else if got.code != 0 {
 				t.Fatalf("exit code = %d, want 0\nstdout: %s\nstderr: %s", got.code, got.stdout, got.stderr)
 			}
 
-			if tt.checkUnchanged {
-				if after := readFile(t, filepath.Join(root, "go.mod")); after != before {
-					t.Errorf("go.mod changed in dry run:\n%s", after)
+			for _, rel := range tt.checkUnchanged {
+				if after := readFile(t, filepath.Join(root, filepath.FromSlash(rel))); after != before[rel] {
+					t.Errorf("%s changed:\n%s", rel, after)
+				}
+			}
+
+			for rel, want := range tt.checkPinned {
+				gotVersion := goVersion(t, filepath.Join(root, filepath.FromSlash(rel)))
+				if gotVersion != want {
+					t.Errorf("go directive in %s = %q, want %q", rel, gotVersion, want)
 				}
 			}
 		})

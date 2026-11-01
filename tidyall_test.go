@@ -17,15 +17,18 @@ func TestRun(t *testing.T) {
 	t.Parallel()
 
 	tests := []struct {
-		name        string
-		files       map[string]string
-		skipDirs    []string
-		wantErr     bool
-		wantVersion string
+		name       string
+		files      map[string]string
+		skipDirs   []string
+		dryRun     bool
+		minVersion string
+		wantErr    bool
+		want       map[string]string
 	}{
 		{
 			name:    "no modules",
 			files:   map[string]string{"main.go": "package main\n"},
+			dryRun:  true,
 			wantErr: true,
 		},
 		{
@@ -34,18 +37,23 @@ func TestRun(t *testing.T) {
 				"go.mod":  "module example.com/m\n\ngo 1.24.0\n",
 				"main.go": "package main\n\nfunc main() {}\n",
 			},
-			wantVersion: "1.24.0",
+			dryRun: true,
+			want:   map[string]string{"go.mod": "1.24.0"},
 		},
 		{
 			name: "skips dirs",
 			files: map[string]string{
-				"go.mod":         "module example.com/root\n\ngo 1.24.0\n",
+				"go.mod":         "module example.com/root\n\ngo 1.21.0\n",
 				"main.go":        "package main\n\nfunc main() {}\n",
-				"skipme/go.mod":  "module example.com/skip\n\ngo 1.24.0\n",
+				"skipme/go.mod":  "module example.com/skip\n\ngo 1.21.0\n",
 				"skipme/main.go": "package main\n\nfunc main() {}\n",
 			},
-			skipDirs:    []string{"skipme"},
-			wantVersion: "1.24.0",
+			skipDirs:   []string{"skipme"},
+			minVersion: "1.99.0",
+			want: map[string]string{
+				"go.mod":        "1.99.0",
+				"skipme/go.mod": "1.21.0",
+			},
 		},
 	}
 
@@ -56,7 +64,7 @@ func TestRun(t *testing.T) {
 			root := t.TempDir()
 			writeFiles(t, root, tt.files)
 
-			cfg := tidyall.Config{Root: root, DryRun: true, SkipDirs: tt.skipDirs}
+			cfg := tidyall.Config{Root: root, DryRun: tt.dryRun, SkipDirs: tt.skipDirs, MinGoVersion: tt.minVersion}
 			err := tidyall.Run(context.Background(), newTestLogger(), cfg)
 			if tt.wantErr {
 				if err == nil {
@@ -69,13 +77,13 @@ func TestRun(t *testing.T) {
 				t.Fatal(err)
 			}
 
-			if tt.wantVersion != "" {
-				got, err := tidyall.ReadGoVersion(filepath.Join(root, "go.mod"))
+			for rel, wantVersion := range tt.want {
+				got, err := tidyall.ReadGoVersion(filepath.Join(root, filepath.FromSlash(rel)))
 				if err != nil {
 					t.Fatal(err)
 				}
-				if got != tt.wantVersion {
-					t.Errorf("go directive = %q, want unchanged %q", got, tt.wantVersion)
+				if got != wantVersion {
+					t.Errorf("go directive in %s = %q, want %q", rel, got, wantVersion)
 				}
 			}
 		})
