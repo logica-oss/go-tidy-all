@@ -224,7 +224,7 @@ func TestE2E(t *testing.T) {
 		t.Parallel()
 
 		root := t.TempDir()
-		copyFixture(t, "skipme", root)
+		copyFixture(t, "skip", root)
 
 		got := runTidy(t, root, "--root", root, "--skip-dirs", "skip", "-n")
 		if got.code != 0 {
