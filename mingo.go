@@ -10,6 +10,7 @@ import (
 	"strings"
 
 	"github.com/bobg/mingo"
+	"github.com/google/renameio/v2"
 	"github.com/k1LoW/errors"
 	"golang.org/x/mod/modfile"
 )
@@ -124,32 +125,8 @@ func writeGoVersion(goMod, version string) error {
 		return errors.WithStack(fmt.Errorf("stat go.mod: %w", err))
 	}
 
-	tmp, err := os.CreateTemp(filepath.Dir(goMod), "go.mod.*")
-	if err != nil {
-		return errors.WithStack(fmt.Errorf("create temp go.mod: %w", err))
-	}
-	tmpName := tmp.Name()
-
-	if _, err := tmp.Write(data); err != nil {
-		_ = tmp.Close()
-		_ = os.Remove(tmpName)
-
-		return errors.WithStack(fmt.Errorf("write temp go.mod: %w", err))
-	}
-	if err := tmp.Close(); err != nil {
-		_ = os.Remove(tmpName)
-
-		return errors.WithStack(fmt.Errorf("close temp go.mod: %w", err))
-	}
-	if err := os.Chmod(tmpName, info.Mode().Perm()); err != nil {
-		_ = os.Remove(tmpName)
-
-		return errors.WithStack(fmt.Errorf("chmod temp go.mod: %w", err))
-	}
-	if err := os.Rename(tmpName, goMod); err != nil {
-		_ = os.Remove(tmpName)
-
-		return errors.WithStack(fmt.Errorf("replace go.mod: %w", err))
+	if err := renameio.WriteFile(goMod, data, info.Mode().Perm()); err != nil {
+		return errors.WithStack(fmt.Errorf("write go.mod: %w", err))
 	}
 
 	return nil
