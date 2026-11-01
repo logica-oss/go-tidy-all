@@ -4,6 +4,7 @@ package e2e_test
 import (
 	"context"
 	"errors"
+	"fmt"
 	"log"
 	"os"
 	"os/exec"
@@ -91,15 +92,73 @@ func runTidy(t *testing.T, root string, args ...string) result {
 	return result{stdout: stdout.String(), stderr: stderr.String(), code: code}
 }
 
-func writeFile(t *testing.T, path, content string) {
+func copyFixture(t *testing.T, fixture, root string) {
 	t.Helper()
 
-	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
-		t.Fatalf("create parent dir: %v", err)
+	src := filepath.Join("testdata", fixture)
+
+	entries, err := os.ReadDir(src)
+	if err != nil {
+		t.Fatalf("read fixture %s: %v", fixture, err)
 	}
-	if err := os.WriteFile(path, []byte(content), 0o644); err != nil {
-		t.Fatalf("write file: %v", err)
+
+	for _, entry := range entries {
+		srcPath := filepath.Join(src, entry.Name())
+		dstPath := filepath.Join(root, entry.Name())
+
+		if entry.IsDir() {
+			if err := copyDir(srcPath, dstPath); err != nil {
+				t.Fatalf("copy fixture dir: %v", err)
+			}
+
+			continue
+		}
+
+		data, err := os.ReadFile(srcPath)
+		if err != nil {
+			t.Fatalf("read fixture file: %v", err)
+		}
+		if err := os.MkdirAll(filepath.Dir(dstPath), 0o755); err != nil {
+			t.Fatalf("create parent dir: %v", err)
+		}
+		if err := os.WriteFile(dstPath, data, 0o644); err != nil {
+			t.Fatalf("write file: %v", err)
+		}
 	}
+}
+
+func copyDir(src, dst string) error {
+	entries, err := os.ReadDir(src)
+	if err != nil {
+		return fmt.Errorf("read dir %s: %w", src, err)
+	}
+
+	if err := os.MkdirAll(dst, 0o755); err != nil {
+		return fmt.Errorf("create dir %s: %w", dst, err)
+	}
+
+	for _, entry := range entries {
+		srcPath := filepath.Join(src, entry.Name())
+		dstPath := filepath.Join(dst, entry.Name())
+
+		if entry.IsDir() {
+			if err := copyDir(srcPath, dstPath); err != nil {
+				return err
+			}
+
+			continue
+		}
+
+		data, err := os.ReadFile(srcPath)
+		if err != nil {
+			return fmt.Errorf("read file %s: %w", srcPath, err)
+		}
+		if err := os.WriteFile(dstPath, data, 0o644); err != nil {
+			return fmt.Errorf("write file %s: %w", dstPath, err)
+		}
+	}
+
+	return nil
 }
 
 func readFile(t *testing.T, path string) string {
@@ -124,8 +183,19 @@ func TestE2E(t *testing.T) {
 		t.Parallel()
 
 		root := t.TempDir()
-		writeFile(t, filepath.Join(root, "go.mod"), "module example.com/m\n\ngo 1.21.0\n")
-		writeFile(t, filepath.Join(root, "main.go"), "package main\n\nfunc main() {}\n")
+		copyFixture(t, "single", root)
+
+		got := runTidy(t, root, "--root", root)
+		if got.code != 0 {
+			t.Fatalf("exit code = %d, want 0\nstdout: %s\nstderr: %s", got.code, got.stdout, got.stderr)
+		}
+	})
+
+	t.Run("tidies multiple modules", func(t *testing.T) {
+		t.Parallel()
+
+		root := t.TempDir()
+		copyFixture(t, "multi", root)
 
 		got := runTidy(t, root, "--root", root)
 		if got.code != 0 {
@@ -137,9 +207,8 @@ func TestE2E(t *testing.T) {
 		t.Parallel()
 
 		root := t.TempDir()
-		before := "module example.com/m\n\ngo 1.21.0\n"
-		writeFile(t, filepath.Join(root, "go.mod"), before)
-		writeFile(t, filepath.Join(root, "main.go"), "package main\n\nfunc main() {}\n")
+		copyFixture(t, "single", root)
+		before := readFile(t, filepath.Join(root, "go.mod"))
 
 		got := runTidy(t, root, "--root", root, "-n")
 		if got.code != 0 {
@@ -155,12 +224,9 @@ func TestE2E(t *testing.T) {
 		t.Parallel()
 
 		root := t.TempDir()
-		writeFile(t, filepath.Join(root, "go.mod"), "module example.com/root\n\ngo 1.24.0\n")
-		writeFile(t, filepath.Join(root, "main.go"), "package main\n\nfunc main() {}\n")
-		writeFile(t, filepath.Join(root, "skipme", "go.mod"), "module example.com/skip\n\ngo 1.21.0\n")
-		writeFile(t, filepath.Join(root, "skipme", "main.go"), "package main\n\nfunc main() {}\n")
+		copyFixture(t, "skipme", root)
 
-		got := runTidy(t, root, "--root", root, "--skip-dirs", "skipme", "-n")
+		got := runTidy(t, root, "--root", root, "--skip-dirs", "skip", "-n")
 		if got.code != 0 {
 			t.Fatalf("exit code = %d, want 0\nstdout: %s\nstderr: %s", got.code, got.stdout, got.stderr)
 		}
@@ -170,7 +236,7 @@ func TestE2E(t *testing.T) {
 		t.Parallel()
 
 		root := t.TempDir()
-		writeFile(t, filepath.Join(root, "main.go"), "package main\n")
+		copyFixture(t, "empty", root)
 
 		got := runTidy(t, root, "--root", root)
 		if got.code == 0 {
@@ -182,7 +248,7 @@ func TestE2E(t *testing.T) {
 		t.Parallel()
 
 		root := t.TempDir()
-		writeFile(t, filepath.Join(root, "go.mod"), "module example.com/m\n\ngo 1.21.0\n")
+		copyFixture(t, "single", root)
 
 		got := runTidy(t, root, "--root", root, "--min-go-version", "bad")
 		if got.code == 0 {
