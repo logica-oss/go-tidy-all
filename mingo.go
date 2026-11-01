@@ -45,7 +45,7 @@ func pinGoDirective(log *slog.Logger, dir string, dryRun bool, minGoVersion stri
 	}
 
 	if dryRun {
-		log.Info("dry-run: would pin go directive", "from", declared, "to", minimum)
+		log.Info("dry-run: would pin go directive from current go.mod (pre-tidy state)", "from", declared, "to", minimum)
 
 		return nil
 	}
