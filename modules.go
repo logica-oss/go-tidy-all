@@ -30,17 +30,18 @@ func findModules(root string, skipDirs []string) ([]string, error) {
 		}
 
 		if entry.IsDir() {
-			if filter.skip(path, entry.Name()) {
+			if filter.skip(path, true) {
 				return filepath.SkipDir
 			}
 
 			return nil
 		}
+
 		if entry.Name() != "go.mod" {
 			return nil
 		}
 
-		if filter.skipFile(path) {
+		if filter.skip(path, false) {
 			return nil
 		}
 
@@ -60,9 +61,6 @@ type dirFilter struct {
 	matcher  gitignore.Matcher
 	skipDirs map[string]struct{}
 }
-
-// DirFilter is exported for external tests.
-type DirFilter = dirFilter
 
 func newDirFilter(root string, skipDirs []string) (dirFilter, error) {
 	patterns, err := gitignore.ReadPatterns(osfs.New(root), nil)
@@ -87,9 +85,8 @@ func newDirFilter(root string, skipDirs []string) (dirFilter, error) {
 	}, nil
 }
 
-// Skip is exported for external tests.
-func (f dirFilter) Skip(path, name string) bool {
-	if name == ".git" {
+func (f dirFilter) skip(path string, isDir bool) bool {
+	if filepath.Base(path) == ".git" {
 		return true
 	}
 
@@ -110,22 +107,5 @@ func (f dirFilter) Skip(path, name string) bool {
 		return false
 	}
 
-	return f.matcher.Match(strings.Split(rel, string(filepath.Separator)), true)
-}
-
-func (f dirFilter) skip(path, name string) bool {
-	return f.Skip(path, name)
-}
-
-func (f dirFilter) skipFile(path string) bool {
-	if f.matcher == nil {
-		return false
-	}
-
-	rel, err := filepath.Rel(f.root, path)
-	if err != nil {
-		return false
-	}
-
-	return f.matcher.Match(strings.Split(rel, string(filepath.Separator)), false)
+	return f.matcher.Match(strings.Split(rel, string(filepath.Separator)), isDir)
 }
