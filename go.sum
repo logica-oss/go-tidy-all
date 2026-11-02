@@ -1,5 +1,5 @@
-github.com/bobg/errors v1.3.0 h1:LJlNiQniZ+wm+kEwRblYYAsY3+DkW4ekPdjZF0raYfk=
-github.com/bobg/errors v1.3.0/go.mod h1:HExZHNKjrSozaLs3/X7HpryCMRBKV6SQXngfQJ9wYb8=
+github.com/bobg/errors v1.4.0 h1:eEGNat8E+LGq0TLiD5MpOirwkHTc9ei11bQppW0S73Y=
+github.com/bobg/errors v1.4.0/go.mod h1:HExZHNKjrSozaLs3/X7HpryCMRBKV6SQXngfQJ9wYb8=
 github.com/bobg/go-generics/v4 v4.4.0 h1:m9sPI2YbYZeta1N3TyG36A4GtDNPFlmbB7X0pTpchFg=
 github.com/bobg/go-generics/v4 v4.4.0/go.mod h1:iPxJPavZ4nAf/eLEmN5c/hWL51bMUcooS7p4juRemJY=
 github.com/bobg/mingo v0.18.0 h1:6DjDytASbzL1LqG/s2KTTByBAHBskGrHd4yngtlti7A=
