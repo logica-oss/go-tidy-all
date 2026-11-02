@@ -30,7 +30,7 @@ type Config struct {
 // Run tidies every module under root.
 func Run(ctx context.Context, log *slog.Logger, cfg Config) error {
 	if cfg.MinGoVersion != "" {
-		if err := ValidateMinGoVersion(cfg.MinGoVersion); err != nil {
+		if err := validateMinGoVersion(cfg.MinGoVersion); err != nil {
 			return err
 		}
 		cfg.MinGoVersion = normalizeMinGoVersion(cfg.MinGoVersion)
@@ -57,19 +57,20 @@ func Run(ctx context.Context, log *slog.Logger, cfg Config) error {
 	return nil
 }
 
-// versionPattern matches Go versions like 1.24.0, with optional go prefix.
-var versionPattern = regexp.MustCompile(`^(?:go)?([1-9][0-9]*\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*))$`)
-
-// ValidateMinGoVersion reports whether ver is an accepted min-go-version value.
-func ValidateMinGoVersion(ver string) error {
-	if !versionPattern.MatchString(ver) {
-		return errors.WithStack(fmt.Errorf("invalid min-go-version %q: must be like 1.24.0", ver))
+func validateMinGoVersion(ver string) error {
+	// matches Go versions like 1.24 or 1.24.0, with optional go prefix.
+	if !regexp.MustCompile(`^(?:go)?([1-9][0-9]*\.(0|[1-9][0-9]*)(\.(0|[1-9][0-9]*))?)$`).MatchString(ver) {
+		return errors.WithStack(fmt.Errorf("invalid min-go-version %q: must be like 1.24 or 1.24.0", ver))
 	}
 
 	return nil
 }
 
-// normalizeMinGoVersion strips an optional go prefix after validation.
 func normalizeMinGoVersion(ver string) string {
-	return strings.TrimPrefix(ver, "go")
+	ver = strings.TrimPrefix(ver, "go")
+	if strings.Count(ver, ".") == 1 {
+		return ver + ".0"
+	}
+
+	return ver
 }
