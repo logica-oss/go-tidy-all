@@ -20,6 +20,14 @@ func writeFile(t *testing.T, path, content string) {
 	}
 }
 
+func writeFiles(t *testing.T, root string, files map[string]string) {
+	t.Helper()
+
+	for rel, content := range files {
+		writeFile(t, filepath.Join(root, filepath.FromSlash(rel)), content)
+	}
+}
+
 func resolveRoot(t *testing.T, root string) string {
 	t.Helper()
 
@@ -29,14 +37,6 @@ func resolveRoot(t *testing.T, root string) string {
 	}
 
 	return resolved
-}
-
-func writeFiles(t *testing.T, root string, files map[string]string) {
-	t.Helper()
-
-	for rel, content := range files {
-		writeFile(t, filepath.Join(root, filepath.FromSlash(rel)), content)
-	}
 }
 
 func mkParent(path string) error {
