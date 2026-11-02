@@ -18,4 +18,7 @@ var (
 	WriteGoVersion = writeGoVersion
 	ParseModFile   = parseModFile
 	Tidy           = tidy
+
+	ValidateMinGoVersion  = validateMinGoVersion
+	NormalizeMinGoVersion = normalizeMinGoVersion
 )

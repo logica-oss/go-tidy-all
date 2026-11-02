@@ -60,14 +60,6 @@ func parseFlags(args []string) (tidyall.Config, bool, error) {
 		cfg.SkipDirs = strings.Split(skipDirs, ",")
 	}
 
-	if cfg.MinGoVersion != "" {
-		if err := tidyall.ValidateMinGoVersion(cfg.MinGoVersion); err != nil {
-			return tidyall.Config{}, false, errors.WithStack(err)
-		}
-
-		cfg.MinGoVersion = strings.TrimPrefix(cfg.MinGoVersion, "go")
-	}
-
 	if cfg.Root == "" {
 		root, err := os.Getwd()
 		if err != nil {
