@@ -15,7 +15,7 @@ require (
 )
 
 require (
-	github.com/bobg/errors v1.3.0 // indirect
+	github.com/bobg/errors v1.4.0 // indirect
 	github.com/bobg/go-generics/v4 v4.4.0 // indirect
 	github.com/cyphar/filepath-securejoin v0.6.1 // indirect
 	github.com/go-git/gcfg v1.5.1-0.20230307220236-3a3c6141e376 // indirect
