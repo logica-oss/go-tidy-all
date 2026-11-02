@@ -1,0 +1,27 @@
+name: Verify (Actions)
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+concurrency:
+  group: verify-actions-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions: {}
+
+jobs:
+  verify-actions:
+    name: Verify (Actions)
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: read
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Verify actions
+        uses: logica-oss/actions-toolkit/verify-actions@7da75ca761d71af4d36eb1d1d33eb78d0c906a32 # v1.2.3

@@ -1,0 +1,34 @@
+language: "en-US"
+
+reviews:
+  profile: assertive
+  auto_approvals:
+    enabled: true
+
+  pre_merge_checks:
+    docstrings:
+      mode: "off"
+
+  path_filters:
+    - "!.github/copilot-instructions.md"
+
+  auto_review:
+    enabled: true
+    drafts: false
+    ignore_usernames:
+      - "renovate[bot]"
+      - "mergify[bot]"
+
+  path_instructions:
+    - path: ".github/workflows/autofix.yaml"
+      instructions: "Accept by design (do not report): the synac step intentionally omits the version input to always use the latest release; do not suggest pinning a version."
+    - path: "mingo.go"
+      instructions: "Accept by design (do not report): pinGoDirective truncates the patch to .0 and leaves replace directives to mingo upstream; mingo ScanDir has no context or build-tag API. Do not suggest behavior changes."
+    - path: "Taskfile.yaml"
+      instructions: "Accept by design (do not report): go.work covers the root and tools modules, so ./... ./tools/... and go tool invocations resolve from the root; do not suggest splitting module checks."
+    - path: ".github/workflows/release.yaml"
+      instructions: "Accept by design (do not report): the release recovery behavior belongs to logica-oss/actions-toolkit; do not suggest local recovery logic."
+    - path: "modules.go"
+      instructions: "Accept by design (do not report): gitignore patterns are loaded once before the walk; SkipDirs filtering happens during the walk. Do not suggest restructuring pattern discovery."
+    - path: "cmd/go-tidy-all/main.go"
+      instructions: "Accept by design (do not report): --min-go-version requires full X.Y.Z form matching the go.mod directive; two-component input is intentionally rejected. Do not suggest accepting partial versions."

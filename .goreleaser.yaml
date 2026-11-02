@@ -1,0 +1,25 @@
+version: 2
+
+project_name: go-tidy-all
+
+builds:
+  - id: go-tidy-all
+    main: ./cmd/go-tidy-all
+    goos: [linux, darwin]
+    goarch: [amd64, arm64]
+    ldflags:
+      - -s -w -X main.version={{ .Version }}
+
+archives:
+  - id: go-tidy-all
+    ids: [go-tidy-all]
+    name_template: "{{ .ProjectName }}_{{ .Version }}_{{ .Os }}_{{ .Arch }}"
+
+checksum:
+  name_template: "{{ .ProjectName }}_{{ .Version }}_checksums.txt"
+
+sboms:
+  - artifacts: archive
+
+changelog:
+  use: github

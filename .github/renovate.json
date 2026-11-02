@@ -1,0 +1,51 @@
+{
+  "$schema": "https://docs.renovatebot.com/renovate-schema.json",
+  "extends": ["config:recommended"],
+  "prHourlyLimit": 0,
+  "prConcurrentLimit": 0,
+  "labels": ["dependencies"],
+  "minimumReleaseAge": "3 days",
+  "rebaseWhen": "conflicted",
+  "gitIgnoredAuthors": ["114827586+autofix-ci[bot]@users.noreply.github.com"],
+  "postUpdateOptions": ["gomodUpdateImportPaths", "gomodTidy"],
+  "packageRules": [
+    {
+      "description": "Upgrade go indirect dependencies in the root module",
+      "matchManagers": ["gomod"],
+      "matchFileNames": ["go.mod"],
+      "matchDepTypes": ["indirect"],
+      "enabled": true
+    },
+    {
+      "description": "Restrict go indirect dependencies up to minor",
+      "matchManagers": ["gomod"],
+      "matchDepTypes": ["indirect"],
+      "matchUpdateTypes": ["major"],
+      "enabled": false
+    },
+    {
+      "description": "Release when a production module dependency changes",
+      "matchDepTypes": ["require"],
+      "matchFileNames": ["go.mod"],
+      "addLabels": ["patch"]
+    }
+  ],
+  "customManagers": [
+    {
+      "description": "Track the pinned Syft version in release.yaml",
+      "customType": "regex",
+      "managerFilePatterns": ["/^.github\\/workflows\\/release\\.yaml$/"],
+      "matchStrings": ["SYFT_VERSION: \"(?<currentValue>v?\\d+\\.\\d+\\.\\d+)\""],
+      "datasourceTemplate": "github-releases",
+      "depNameTemplate": "anchore/syft"
+    },
+    {
+      "description": "Track the pinned GoReleaser version in release.yaml",
+      "customType": "regex",
+      "managerFilePatterns": ["/^.github\\/workflows\\/release\\.yaml$/"],
+      "matchStrings": ["GORELEASER_VERSION: \"(?<currentValue>v?\\d+\\.\\d+\\.\\d+)\""],
+      "datasourceTemplate": "github-releases",
+      "depNameTemplate": "goreleaser/goreleaser"
+    }
+  ]
+}

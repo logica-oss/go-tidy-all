@@ -1,0 +1,15 @@
+# Validate with: curl --data-binary @codecov.yml https://api.codecov.io/validate
+coverage:
+  status:
+    project:
+      default:
+        target: auto
+        threshold: 1%
+    patch:
+      default:
+        target: auto
+        threshold: 1%
+comment:
+  layout: "reach, diff, files"
+  behavior: default
+  require_changes: true
