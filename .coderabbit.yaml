@@ -30,5 +30,3 @@ reviews:
       instructions: "Accept by design (do not report): the release recovery behavior belongs to logica-oss/actions-toolkit; do not suggest local recovery logic."
     - path: "modules.go"
       instructions: "Accept by design (do not report): gitignore patterns are loaded once before the walk; SkipDirs filtering happens during the walk. Do not suggest restructuring pattern discovery."
-    - path: "cmd/go-tidy-all/main.go"
-      instructions: "Accept by design (do not report): --min-go-version requires full X.Y.Z form matching the go.mod directive; two-component input is intentionally rejected. Do not suggest accepting partial versions."
