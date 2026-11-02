@@ -21,8 +21,6 @@ import (
 //nolint:gochecknoglobals // build-time injection requires a package variable.
 var version = "dev"
 
-const exitUsage = 2
-
 func parseFlags(args []string) (tidyall.Config, bool, error) {
 	var (
 		cfg         tidyall.Config
@@ -95,6 +93,8 @@ func resolveVersion() string {
 
 	return version
 }
+
+const exitUsage = 2
 
 func main() {
 	log := slog.New(slog.NewTextHandler(os.Stdout, nil))
