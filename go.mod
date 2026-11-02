@@ -8,7 +8,6 @@ require (
 	github.com/bobg/mingo v0.18.0
 	github.com/go-git/go-billy/v5 v5.9.2
 	github.com/go-git/go-git/v5 v5.19.3
-	github.com/google/renameio/v2 v2.0.2
 	github.com/k1LoW/errors v1.2.1
 	github.com/spf13/pflag v1.0.10
 	golang.org/x/mod v0.42.0

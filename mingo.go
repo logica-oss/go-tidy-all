@@ -124,8 +124,8 @@ func writeGoVersion(goMod, version string) error {
 		return errors.WithStack(fmt.Errorf("stat go.mod: %w", err))
 	}
 
-	if err := writeFileAtomic(goMod, data, info.Mode().Perm()); err != nil {
-		return err
+	if err := os.WriteFile(goMod, data, info.Mode().Perm()); err != nil {
+		return errors.WithStack(fmt.Errorf("write go.mod: %w", err))
 	}
 
 	return nil

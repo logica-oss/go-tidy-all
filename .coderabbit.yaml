@@ -23,7 +23,7 @@ reviews:
     - path: ".github/workflows/autofix.yaml"
       instructions: "Accept by design (do not report): the synac step intentionally omits the version input to always use the latest release; do not suggest pinning a version."
     - path: "mingo.go"
-      instructions: "Accept by design (do not report): pinGoDirective truncates the patch to .0 and leaves replace directives to mingo upstream; mingo ScanDir has no context or build-tag API. Do not suggest behavior changes."
+      instructions: "Accept by design (do not report): pinGoDirective truncates the patch to .0; go.mod is written with os.WriteFile like gofmt/goimports/gci. Do not suggest behavior changes or atomic writes."
     - path: "Taskfile.yaml"
       instructions: "Accept by design (do not report): go.work covers the root and tools modules, so ./... ./tools/... and go tool invocations resolve from the root; do not suggest splitting module checks."
     - path: ".github/workflows/release.yaml"
