@@ -25,4 +25,4 @@ jobs:
         with:
           persist-credentials: false
       - name: Check release label
-        uses: logica-oss/actions-toolkit/check-release-label@7da75ca761d71af4d36eb1d1d33eb78d0c906a32 # v1.2.3
+        uses: logica-oss/actions-toolkit/check-release-label@a9b5747568c5c53f2011d686212afcd21802621d # v1.2.4
