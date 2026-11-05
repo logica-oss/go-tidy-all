@@ -1,5 +1,4 @@
-// Command go-tidy-all runs go mod tidy for every module in the repository and pins
-// each go directive to the lowest version that mingo computes.
+// Command go-tidy-all runs go mod tidy for every module and pins each go directive to the lowest version that mingo computes.
 package main
 
 import (
@@ -53,7 +52,7 @@ func parseFlags(args []string) (tidyall.Config, bool, error) {
 	}
 
 	if flagSet.NArg() > 0 {
-		return tidyall.Config{}, false, errors.WithStack(fmt.Errorf("unexpected argument %q: use --root to select a repository", flagSet.Arg(0)))
+		return tidyall.Config{}, false, errors.WithStack(fmt.Errorf("unexpected argument %q", flagSet.Arg(0)))
 	}
 
 	if skipDirs != "" {
