@@ -47,7 +47,7 @@ jobs:
       attestations: write # Lets attest persist the provenance attestation
     env:
       GORELEASER_VERSION: "v2.20.0"
-      SYFT_VERSION: "v1.57.0"
+      SYFT_VERSION: "v1.57.1"
     steps:
       - name: Checkout
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
