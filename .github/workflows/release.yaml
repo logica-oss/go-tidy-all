@@ -30,7 +30,7 @@ jobs:
           persist-credentials: false
       - name: Create release
         id: release
-        uses: logica-oss/actions-toolkit/release@a9b5747568c5c53f2011d686212afcd21802621d # v1.2.4
+        uses: logica-oss/actions-toolkit/release@77e65c475dd7833ec935ab63662cf418b7ac323e # v1.2.5
         with:
           initial-version: v0.1.0
           create-release: "false"
