@@ -2,7 +2,7 @@ module github.com/logica-oss/go-tidy-all
 
 go 1.27.0
 
-toolchain go1.27.3
+toolchain go1.27.4
 
 require (
 	github.com/bobg/mingo v0.18.0
