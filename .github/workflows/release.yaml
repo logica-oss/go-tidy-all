@@ -46,7 +46,7 @@ jobs:
       id-token: write # Lets attest mint an OIDC token for Sigstore signing
       attestations: write # Lets attest persist the provenance attestation
     env:
-      GORELEASER_VERSION: "v2.20.0"
+      GORELEASER_VERSION: "v2.20.1"
       SYFT_VERSION: "v1.57.1"
     steps:
       - name: Checkout
