@@ -52,7 +52,7 @@ jobs:
         with:
           verify: "false"
       - name: Autofix Text
-        uses: logica-oss/actions-toolkit/autofix-text@370527b37cd9cd32e93cbdf9ab80459581ed59fe # v1.2.6
+        uses: logica-oss/actions-toolkit/autofix-text@bc18039a34dd1c5055c85cdac134ed4e546625fc # v1.2.7
         with:
           markdown-globs: |
             **/*.{md,markdown}
