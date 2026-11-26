@@ -24,4 +24,4 @@ jobs:
         with:
           persist-credentials: false
       - name: Verify actions
-        uses: logica-oss/actions-toolkit/verify-actions@370527b37cd9cd32e93cbdf9ab80459581ed59fe # v1.2.6
+        uses: logica-oss/actions-toolkit/verify-actions@bc18039a34dd1c5055c85cdac134ed4e546625fc # v1.2.7
